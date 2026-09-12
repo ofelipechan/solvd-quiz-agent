@@ -7,6 +7,7 @@
   },
   "packageManager": "pnpm@10.10.0",
   "scripts": {
+    "dev": "pnpm --parallel --filter @quiz-agent/api --filter @quiz-agent/web run dev",
     "build": "pnpm -r --if-present run build",
     "lint": "pnpm -r --if-present run lint",
     "test": "pnpm -r --if-present run test",
