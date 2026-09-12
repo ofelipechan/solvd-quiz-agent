@@ -11,7 +11,8 @@
     "lint": "pnpm -r --if-present run lint",
     "test": "pnpm -r --if-present run test",
     "test:integration": "pnpm -r --if-present run test:integration",
-    "test:e2e": "pnpm -r --if-present run test:e2e"
+    "test:e2e": "pnpm -r --if-present run test:e2e",
+    "docker:up": "docker compose up --build"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

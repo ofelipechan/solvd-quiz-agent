@@ -452,9 +452,10 @@ Tasks: T27, T28, T29
 **Requirement**: (Success Criteria: `docker compose up` brings up DB+app)
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] `docker compose up` + `pnpm --filter db seed` (or a compose `seed` service) brings up a working stack reachable on localhost
+- [x] `docker compose up` + `pnpm --filter db seed` (or a compose `seed` service) brings up a working stack reachable on localhost
 **Tests**: none
 **Gate**: build
+**Status**: ✅ Complete — `docker compose up --build` builds `api`/`web` images and brings up `postgres` (healthy) + `api` (:3001) + `web` (:3000). Ran `drizzle-kit migrate` and the seed script against the container's Postgres, then verified `POST /api/auth/login` with the seeded admin returns 200 through the live containerized API. Along the way, found and fixed a real wiring gap: `server.ts` built the Fastify app but never called `registerAuthRoutes`/`registerQuizRoutes` with real repository/service instances, so every route 404'd outside of tests (which construct routes directly). Wired `server.ts` to build `UserRepository`/`QuizRepository`/`AuthService`/`QuizService` from `createDb()` + env and register both route sets — without this the stack could not be verified as "working," not just as containers running. `pnpm -w build && pnpm -w lint && pnpm -w test` all pass (36 api unit tests, 11 web tests, 7 shared tests).
 
 ---
 
