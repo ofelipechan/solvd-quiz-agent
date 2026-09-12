@@ -296,9 +296,10 @@ Tasks: T27, T28, T29
 **Requirement**: GEN-01, GEN-07, SCORE-05
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Unit tests (mocked fetcher/strategy/repo): happy path calls all three in order and returns persisted quiz; fetcher error propagates without calling generate/persist; generation failure propagates without persisting a partial quiz (design GEN-06)
+- [x] Unit tests (mocked fetcher/strategy/repo): happy path calls all three in order and returns persisted quiz; fetcher error propagates without calling generate/persist; generation failure propagates without persisting a partial quiz (design GEN-06)
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 
