@@ -181,9 +181,10 @@ Tasks: T27, T28, T29
 **Requirement**: AUTH-01, AUTH-02, AUTH-03, AUTH-05
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Route tests via `.inject()`: valid login → 200 + Set-Cookie; invalid → 401 no cookie; logout → 200 + cleared cookie; protected route with no cookie → 401; with expired token → 401
+- [x] Route tests via `.inject()`: valid login → 200 + Set-Cookie; invalid → 401 no cookie; logout → 200 + cleared cookie; protected route with no cookie → 401; with expired token → 401
 **Tests**: integration
 **Gate**: full
+**Status**: ✅ Complete
 
 ---
 
