@@ -282,9 +282,10 @@ Tasks: T27, T28, T29
 **Requirement**: GEN-01, SCORE-03, SCORE-06, HIST-01
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Integration tests (real Postgres): create persists quiz+questions+options atomically; find returns full tree; second `createSubmission` on same quiz throws a typed `DuplicateSubmissionError` (mapped from DB unique violation)
+- [x] Integration tests (real Postgres): create persists quiz+questions+options atomically; find returns full tree; second `createSubmission` on same quiz throws a typed `DuplicateSubmissionError` (mapped from DB unique violation)
 **Tests**: integration
 **Gate**: full
+**Status**: ✅ Complete
 
 ---
 
