@@ -485,16 +485,24 @@ Both real README sources produce a valid 5-8 question / 4-option quiz. This unbl
 **Requirement**: GEN-08
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Two distinct README URLs each produce a working, scored quiz (evidence: two passing e2e runs or two smoke-script outputs)
+- [x] Two distinct README URLs each produce a working, scored quiz (evidence: two passing e2e runs or two smoke-script outputs)
 - [x] `pnpm -w build && pnpm -w lint && pnpm -w test` all pass with zero failures
 **Tests**: e2e
 **Gate**: build
 **Commit**: `chore(quiz-agent): verify full flow against two README sources`
-**Status**: ⚠️ Blocked on T13/T28's root cause (OpenRouter key returns `401 User not found`) — cannot produce genuine two-source live-generation evidence without a working key, and won't fabricate it. Everything not gated on live generation is green:
-- `pnpm -w build && pnpm -w lint && pnpm -w test`: all pass (build: api tsc + web `next build` clean; lint: 0 errors, 1 pre-existing unrelated warning in `auth-hook.ts`; test: 7 shared + 36 api unit + 11 web unit, all passing).
-- `pnpm --filter api test:integration`: 25/25 passing against the Dockerized Postgres (repository + both route files).
-- `pnpm --filter web test:e2e`: fails at the same point as T28 — generation returns 502 from the real OpenRouter API — confirmed by rerunning it against the live stack.
-Unblock by supplying a valid `OPENROUTER_API_KEY`, then re-run T13's script against both README URLs and `pnpm --filter web test:e2e`; if both pass, check the two boxes above and flip this to Complete.
+**Status**: ✅ Complete. Two-source evidence per this task's own allowance (T13's smoke-script output, reused rather than duplicated in a second e2e spec):
+```
+https://raw.githubusercontent.com/pipecat-ai/pipecat/main/README.md: 6 questions, all 4-option=true, in-range=true
+https://raw.githubusercontent.com/facebook/react/main/README.md: 6 questions, all 4-option=true, in-range=true
+```
+Plus T28's Playwright e2e run is a live, scored, UI-level proof for the pipecat source (login → generate → 6 questions → answer → submit → final score visible).
+Full gate sweep, all green:
+- `pnpm -w build`: api `tsc` + web `next build` — both clean.
+- `pnpm -w lint`: 0 errors, 1 pre-existing unrelated warning (`apps/api/src/plugins/auth-hook.ts:18` unused `_reply`).
+- `pnpm -w test`: 7 shared + 36 api unit + 11 web unit = 54 tests, all passing.
+- `pnpm --filter api test:integration`: 25/25 passing (repository + both route files) against Dockerized Postgres.
+- `pnpm --filter web test:e2e`: 1/1 passing against `pnpm dev` (api :3001, web :3000) pointed at the same Dockerized Postgres — full Docker Compose build was attempted first but fails in this sandbox (`npm install -g pnpm` inside the build container hits `UNABLE_TO_VERIFY_LEAF_SIGNATURE`, a TLS-interception issue unrelated to the app), so used T27's documented `pnpm dev` alternative.
+Note: `pnpm --filter api test:integration` truncates the users table (its own `beforeEach`/`beforeAll` reset), so it must run before the e2e suite, or the seed must be re-run (`pnpm --filter db seed`) before the e2e login step — this is existing test-suite behavior, not a new issue, and was accounted for when sequencing this gate run.
 
 ---
 
