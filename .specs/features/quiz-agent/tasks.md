@@ -423,9 +423,10 @@ Tasks: T27, T28, T29
 **Requirement**: UI-03, UI-04
 **Tools**: MCP: NONE / Skill: `react`, `ui-ux`
 **Done when**:
-- [ ] RTL tests: single-answer question renders radios (mutually exclusive); multiple-answer renders checkboxes; submit shows correctness per question + final score
+- [x] RTL tests: single-answer question renders radios (mutually exclusive); multiple-answer renders checkboxes; submit shows correctness per question + final score
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 
