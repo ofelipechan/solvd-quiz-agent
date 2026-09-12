@@ -24,6 +24,26 @@ export class InvalidAnswerError extends AppError {
   }
 }
 
+/**
+ * Thrown when the fetched Markdown is too short to plausibly yield 5
+ * questions (spec.md Edge Cases: insufficient source content -> 422,
+ * distinct from a 502 generation failure).
+ */
+export class InsufficientContentError extends AppError {
+  constructor() {
+    super("source content is too short to generate a quiz", 422);
+  }
+}
+
+/**
+ * Conservative floor below which a source cannot plausibly yield 5
+ * substantive questions. Chosen well under any real README (a few short
+ * sentences), so it only catches genuinely empty/near-empty sources
+ * without rejecting legitimate short-but-usable docs before the LLM
+ * even gets a chance.
+ */
+const MIN_CONTENT_LENGTH = 200;
+
 const FULL_SCORE = 4;
 
 /** The slice of `fetchMarkdown`'s signature `QuizService` depends on. */
@@ -44,6 +64,9 @@ export class QuizService {
    */
   async createQuiz(sourceUrl: string): Promise<QuizWithQuestions> {
     const { content } = await this.fetchMarkdown(sourceUrl);
+    if (content.trim().length < MIN_CONTENT_LENGTH) {
+      throw new InsufficientContentError();
+    }
     const generated = await this.generationStrategy.generate(content);
 
     const questionsData: NewQuestionData[] = generated.questions.map((q) => ({

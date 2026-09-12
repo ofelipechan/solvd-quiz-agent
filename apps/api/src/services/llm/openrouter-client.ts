@@ -1,5 +1,15 @@
 import { OpenRouter } from "@openrouter/sdk";
+import { AppError } from "../../app.js";
 import { OPENROUTER_MODEL_ID } from "../../config/env.js";
+
+const CHAT_TIMEOUT_MS = 30_000;
+
+/** Thrown when the OpenRouter chat completion call exceeds 30s (design's Error Handling Strategy: timeout -> 504). */
+export class LlmTimeoutError extends AppError {
+  constructor() {
+    super("quiz generation timed out", 504);
+  }
+}
 
 /**
  * The slice of the `@openrouter/sdk` client surface this wrapper depends
@@ -24,13 +34,31 @@ export class OpenRouterClient {
     private readonly model: string = OPENROUTER_MODEL_ID,
   ) {}
 
-  /** Sends `prompt` in JSON mode and returns the parsed JSON response body. */
+  /**
+   * Sends `prompt` in JSON mode and returns the parsed JSON response body.
+   * Aborts with `LlmTimeoutError` (504) if OpenRouter hasn't responded within
+   * 30s, per design's Error Handling Strategy.
+   */
   async chatJSON(prompt: string): Promise<unknown> {
-    const result = await this.sdk.chat.send({
-      model: this.model,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
+    let timer: NodeJS.Timeout;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new LlmTimeoutError()), CHAT_TIMEOUT_MS);
+      timer.unref?.();
     });
+
+    let result;
+    try {
+      result = await Promise.race([
+        this.sdk.chat.send({
+          model: this.model,
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+        }),
+        timeout,
+      ]);
+    } finally {
+      clearTimeout(timer!);
+    }
 
     const content = result.choices[0]?.message?.content ?? "";
     return JSON.parse(content);

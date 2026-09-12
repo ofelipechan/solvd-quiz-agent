@@ -646,3 +646,15 @@ No forward-phase dependency (every dependency points to an earlier or same phase
 | T29 | verification (build gate) | e2e (re-verification) | e2e | ✅ OK |
 
 No violations.
+
+---
+
+## Post-Verification Fixes
+
+The independent Verifier (author ≠ verifier, run after T29) found 3 gaps against the initial 29-task implementation. All fixed and re-verified; see `validation.md` for the full report.
+
+1. **Blocker** — `apps/web/vitest.config.ts` was missing a `resolve.alias` for `@`, present only as an uncommitted local change never captured by any of the 33 feature commits. `pnpm -w test` failed at committed HEAD (4 of 5 web test files unresolved). Fixed and committed (`fix(web): add @ path alias to vitest config for module resolution`).
+2. **Major** — no test covered design's "OpenRouter call >30s → 504" edge case. Added `LlmTimeoutError` (504) with a 30s `Promise.race` timeout in `OpenRouterClient.chatJSON`, plus a fake-timers unit test.
+3. **Minor** — spec's "insufficient source content → 422" edge case fell through to a generic 502 `GenerationFailedError`. Added `InsufficientContentError` (422) with a 200-char floor check in `QuizService.createQuiz`, before the generation strategy is called, plus a unit test.
+
+Both #2 and #3 committed together (`fix(api): map LLM timeout to 504 and short content to 422`).

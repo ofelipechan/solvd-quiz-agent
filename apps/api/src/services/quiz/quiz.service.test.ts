@@ -3,6 +3,7 @@ import {
   QuizService,
   QuizNotFoundError,
   InvalidAnswerError,
+  InsufficientContentError,
   type MarkdownFetcherFn,
 } from "./quiz.service.js";
 import type { QuestionGenerationStrategy } from "./generation-strategy.js";
@@ -11,6 +12,12 @@ import {
   type QuizRepository,
   type QuizWithQuestions,
 } from "../../repositories/quiz.repository.js";
+
+/** Well over the 200-char insufficient-content floor, so existing tests exercise the normal fetch->generate path. */
+const sampleReadmeContent =
+  "# Example Project\n\nThis is a substantial README with plenty of content to describe " +
+  "the project, its features, installation steps, and usage examples in enough detail " +
+  "for a quiz to be generated from it.";
 
 const generatedQuiz = {
   questions: [
@@ -50,7 +57,7 @@ const persistedQuiz: QuizWithQuestions = {
 function buildCollaborators() {
   const fetchMarkdown: MarkdownFetcherFn = vi
     .fn()
-    .mockResolvedValue({ content: "# doc", sourceUrl: "https://example.com/README.md" });
+    .mockResolvedValue({ content: sampleReadmeContent, sourceUrl: "https://example.com/README.md" });
   const strategy: QuestionGenerationStrategy = { generate: vi.fn().mockResolvedValue(generatedQuiz) };
   const repository = {
     createQuizWithQuestions: vi.fn().mockResolvedValue({
@@ -77,7 +84,7 @@ describe("QuizService.createQuiz", () => {
     const calls: string[] = [];
     (fetchMarkdown as ReturnType<typeof vi.fn>).mockImplementation(async () => {
       calls.push("fetch");
-      return { content: "# doc", sourceUrl: "https://example.com/README.md" };
+      return { content: sampleReadmeContent, sourceUrl: "https://example.com/README.md" };
     });
     (strategy.generate as ReturnType<typeof vi.fn>).mockImplementation(async () => {
       calls.push("generate");
@@ -118,6 +125,31 @@ describe("QuizService.createQuiz", () => {
 
     await expect(service.createQuiz("https://example.com/README.md")).rejects.toBe(generationError);
     expect(repository.createQuizWithQuestions).not.toHaveBeenCalled();
+  });
+
+  /** Edge case: source content too short to plausibly yield 5 questions throws InsufficientContentError (422) without calling generate. */
+  it("throws InsufficientContentError for content under the minimum length, without calling generate", async () => {
+    const { fetchMarkdown, strategy, repository } = buildCollaborators();
+    (fetchMarkdown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      content: "too short",
+      sourceUrl: "https://example.com/README.md",
+    });
+
+    const service = new QuizService(fetchMarkdown, strategy, repository);
+
+    await expect(service.createQuiz("https://example.com/README.md")).rejects.toBeInstanceOf(
+      InsufficientContentError,
+    );
+    expect(strategy.generate).not.toHaveBeenCalled();
+    expect(repository.createQuizWithQuestions).not.toHaveBeenCalled();
+
+    let caught: unknown;
+    try {
+      await service.createQuiz("https://example.com/README.md");
+    } catch (e) {
+      caught = e;
+    }
+    expect((caught as InsufficientContentError).statusCode).toBe(422);
   });
 });
 
