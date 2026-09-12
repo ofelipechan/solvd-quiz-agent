@@ -239,9 +239,10 @@ Tasks: T27, T28, T29
 **Requirement**: GEN-01, GEN-02, GEN-06
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Unit tests (mocked client): valid JSON on first try → returns parsed quiz, no retry; invalid then valid → 1 retry then success; invalid twice → `GenerationFailedError`, no third call
+- [x] Unit tests (mocked client): valid JSON on first try → returns parsed quiz, no retry; invalid then valid → 1 retry then success; invalid twice → `GenerationFailedError`, no third call
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 
