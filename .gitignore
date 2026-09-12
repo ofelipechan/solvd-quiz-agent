@@ -8,3 +8,7 @@ coverage/
 .turbo/
 drizzle/meta/*.json.bak
 .DS_Store
+
+# Playwright artifacts
+apps/web/test-results/
+apps/web/playwright-report/

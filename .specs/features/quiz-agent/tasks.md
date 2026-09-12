@@ -469,6 +469,7 @@ Tasks: T27, T28, T29
 - [ ] `pnpm --filter web test:e2e` passes against the Dockerized stack
 **Tests**: e2e
 **Gate**: E2E
+**Status**: ⚠️ Blocked on T13's root cause. `apps/web/e2e/quiz-flow.spec.ts` + `apps/web/playwright.config.ts` are written and mechanically verified against a live stack (api+web run via `pnpm dev`, pointed at the Dockerized Postgres — the task's documented alternative to the full Docker stack): login redirects to `/quizzes/new` correctly, the generate-quiz call reaches the real API, and the API correctly surfaces a generation error (no fabricated pass). The spec fails past that point only because `POST /api/quizzes` returns a `GenerationFailedError` (502) — same root cause as T13, the OpenRouter key returning `401 User not found`. `@playwright/test` was added as a devDependency (already the user-approved e2e stack per this file's Test Coverage Matrix); the config uses `channel: "chrome"` (system Chrome) because this sandbox cannot reach Playwright's browser-binary CDN. Re-run once a valid key is in place: `E2E_BASE_URL=http://localhost:3000 pnpm --filter web test:e2e`.
 
 ---
 
