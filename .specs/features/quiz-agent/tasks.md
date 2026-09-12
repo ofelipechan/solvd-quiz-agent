@@ -268,9 +268,10 @@ Tasks: T27, T28, T29
 **Requirement**: SCORE-01, SCORE-02
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Unit tests: single correct → 4; single wrong → 0; multiple 2/2 correct picked → 4; multiple 1/2 → 2; multiple with extra wrong pick included → still `4*correct/total` per no-penalty rule; final score matches hand-computed weighted average for a 3-question example (weights 1.0, 1.1, 1.21)
+- [x] Unit tests: single correct → 4; single wrong → 0; multiple 2/2 correct picked → 4; multiple 1/2 → 2; multiple with extra wrong pick included → still `4*correct/total` per no-penalty rule; final score matches hand-computed weighted average for a 3-question example (weights 1.0, 1.1, 1.21)
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 
