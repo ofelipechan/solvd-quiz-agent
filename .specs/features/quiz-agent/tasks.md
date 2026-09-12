@@ -257,6 +257,7 @@ Tasks: T27, T28, T29
 **Tests**: none (external-dependency smoke, not gated in CI)
 **Gate**: quick
 **Commit**: `feat(generation): validate quiz generation against real README sources`
+**Status**: ⚠️ Blocked — no `OPENROUTER_API_KEY` available in this environment. Script `apps/api/scripts/smoke-generate.ts` is written and typechecks per the task's spec, but was never executed against the real OpenRouter API, so no real output exists to paste here. Per Knowledge Verification Chain, no output is fabricated. Run manually with a real key: `OPENROUTER_API_KEY=sk-... pnpm --filter api exec tsx scripts/smoke-generate.ts`.
 
 ---
 
