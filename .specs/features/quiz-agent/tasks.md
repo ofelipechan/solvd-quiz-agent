@@ -224,10 +224,11 @@ Tasks: T27, T28, T29
 **Requirement**: GEN-01
 **Tools**: MCP: WebFetch / WebSearch (confirm current OpenRouter free-tier model id and JSON-mode param) / Skill: NONE
 **Done when**:
-- [ ] Unit test mocks the SDK call, asserts request shape (model, JSON mode flag, prompt) is correct
-- [ ] Chosen model id documented with a comment citing where it was confirmed
+- [x] Unit test mocks the SDK call, asserts request shape (model, JSON mode flag, prompt) is correct
+- [x] Chosen model id documented with a comment citing where it was confirmed
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 

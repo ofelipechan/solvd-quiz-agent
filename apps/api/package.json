@@ -12,6 +12,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@openrouter/sdk": "^1.2.119",
     "@quiz-agent/db": "workspace:*",
     "@quiz-agent/shared": "workspace:*",
     "fastify": "^5.1.0",

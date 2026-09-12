@@ -26,6 +26,9 @@ importers:
       '@fastify/cookie':
         specifier: ^11.0.1
         version: 11.1.2
+      '@openrouter/sdk':
+        specifier: ^1.2.119
+        version: 1.2.119
       '@quiz-agent/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -767,6 +770,9 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@openrouter/sdk@1.2.119':
+    resolution: {integrity: sha512-HpfsANnkAQqBG9i+TpBQ2ab1zc60Lv/M+IMdQTZf44y+begYds6xSmJEI8SPGjKU+s6Vs4aQ3fuV0MJJUfJtHg==}
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -2487,6 +2493,10 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.3
+
+  '@openrouter/sdk@1.2.119':
+    dependencies:
+      zod: 3.25.76
 
   '@pinojs/redact@0.4.0': {}
 
