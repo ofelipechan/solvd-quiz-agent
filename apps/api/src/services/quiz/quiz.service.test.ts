@@ -1,7 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
-import { QuizService, QuizNotFoundError, type MarkdownFetcherFn } from "./quiz.service.js";
+import {
+  QuizService,
+  QuizNotFoundError,
+  InvalidAnswerError,
+  type MarkdownFetcherFn,
+} from "./quiz.service.js";
 import type { QuestionGenerationStrategy } from "./generation-strategy.js";
-import type { QuizRepository, QuizWithQuestions } from "../../repositories/quiz.repository.js";
+import {
+  DuplicateSubmissionError,
+  type QuizRepository,
+  type QuizWithQuestions,
+} from "../../repositories/quiz.repository.js";
 
 const generatedQuiz = {
   questions: [
@@ -50,6 +59,12 @@ function buildCollaborators() {
       createdAt: persistedQuiz.createdAt,
     }),
     findQuizWithQuestions: vi.fn().mockResolvedValue(persistedQuiz),
+    createSubmission: vi.fn().mockResolvedValue({
+      id: "submission-1",
+      quizId: persistedQuiz.id,
+      finalScore: 0,
+      submittedAt: new Date(),
+    }),
   } as unknown as QuizRepository;
 
   return { fetchMarkdown, strategy, repository };
@@ -123,5 +138,104 @@ describe("QuizService.getQuizForSubmission", () => {
     const service = new QuizService(fetchMarkdown, strategy, repository);
 
     await expect(service.getQuizForSubmission("missing")).rejects.toBeInstanceOf(QuizNotFoundError);
+  });
+});
+
+const twoQuestionQuiz: QuizWithQuestions = {
+  id: "quiz-2",
+  sourceUrl: "https://example.com/README.md",
+  createdAt: new Date(),
+  questions: [
+    {
+      id: "q1",
+      orderIndex: 1,
+      text: "single question",
+      questionType: "single",
+      options: [
+        { id: "q1-a", text: "a", isCorrect: true },
+        { id: "q1-b", text: "b", isCorrect: false },
+        { id: "q1-c", text: "c", isCorrect: false },
+        { id: "q1-d", text: "d", isCorrect: false },
+      ],
+    },
+    {
+      id: "q2",
+      orderIndex: 2,
+      text: "multiple question",
+      questionType: "multiple",
+      options: [
+        { id: "q2-a", text: "a", isCorrect: true },
+        { id: "q2-b", text: "b", isCorrect: true },
+        { id: "q2-c", text: "c", isCorrect: false },
+        { id: "q2-d", text: "d", isCorrect: false },
+      ],
+    },
+  ],
+};
+
+describe("QuizService.submitQuiz", () => {
+  function buildSubmitService() {
+    const { fetchMarkdown, strategy, repository } = buildCollaborators();
+    (repository.findQuizWithQuestions as ReturnType<typeof vi.fn>).mockResolvedValue(twoQuestionQuiz);
+    const service = new QuizService(fetchMarkdown, strategy, repository);
+    return { service, repository };
+  }
+
+  /** SCORE-01/02/03: a full valid submission scores each question correctly and returns the weighted final score. */
+  it("scores a full valid submission and returns per-question correctness plus final score", async () => {
+    const { service } = buildSubmitService();
+
+    const result = await service.submitQuiz("quiz-2", [
+      { questionId: "q1", selectedOptionIds: ["q1-a"] },
+      { questionId: "q2", selectedOptionIds: ["q2-a", "q2-b"] },
+    ]);
+
+    expect(result.answers).toEqual([
+      { questionId: "q1", correct: true, score: 4 },
+      { questionId: "q2", correct: true, score: 4 },
+    ]);
+    // weight_1=1, weight_2=1.1 -> (4*1 + 4*1.1)/(1+1.1) = 4
+    expect(result.finalScore).toBeCloseTo(4, 10);
+  });
+
+  /** SCORE-04: a missing answer for a question scores it 0 rather than rejecting the request. */
+  it("scores a question with no submitted answer as 0", async () => {
+    const { service } = buildSubmitService();
+
+    const result = await service.submitQuiz("quiz-2", [{ questionId: "q1", selectedOptionIds: ["q1-a"] }]);
+
+    expect(result.answers).toEqual([
+      { questionId: "q1", correct: true, score: 4 },
+      { questionId: "q2", correct: false, score: 0 },
+    ]);
+  });
+
+  /** Edge case: an option id from the wrong question throws InvalidAnswerError. */
+  it("throws InvalidAnswerError when a selected option id belongs to a different question", async () => {
+    const { service } = buildSubmitService();
+
+    await expect(
+      service.submitQuiz("quiz-2", [{ questionId: "q1", selectedOptionIds: ["q2-a"] }]),
+    ).rejects.toBeInstanceOf(InvalidAnswerError);
+  });
+
+  /** SCORE-06: resubmitting an already-submitted quiz propagates DuplicateSubmissionError from the repository. */
+  it("propagates DuplicateSubmissionError from the repository on resubmission", async () => {
+    const { service, repository } = buildSubmitService();
+    (repository.createSubmission as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new DuplicateSubmissionError(),
+    );
+
+    await expect(
+      service.submitQuiz("quiz-2", [{ questionId: "q1", selectedOptionIds: ["q1-a"] }]),
+    ).rejects.toBeInstanceOf(DuplicateSubmissionError);
+  });
+
+  /** SCORE-05: submitting to a nonexistent quiz throws QuizNotFoundError. */
+  it("throws QuizNotFoundError when the quiz does not exist", async () => {
+    const { service, repository } = buildSubmitService();
+    (repository.findQuizWithQuestions as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+    await expect(service.submitQuiz("missing", [])).rejects.toBeInstanceOf(QuizNotFoundError);
   });
 });

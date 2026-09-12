@@ -1,5 +1,7 @@
+import type { AnswerInput, AnswerResult, SubmitResponse } from "@quiz-agent/shared";
 import { AppError } from "../../app.js";
 import type { QuestionGenerationStrategy } from "./generation-strategy.js";
+import { scoreQuestion, computeFinalScore } from "./scoring.service.js";
 import type {
   QuizRepository,
   QuizWithQuestions,
@@ -13,6 +15,15 @@ export class QuizNotFoundError extends AppError {
     super("quiz not found", 404);
   }
 }
+
+/** Thrown when a submitted option id doesn't belong to its referenced question. */
+export class InvalidAnswerError extends AppError {
+  constructor() {
+    super("selected option does not belong to the referenced question", 400);
+  }
+}
+
+const FULL_SCORE = 4;
 
 /** The slice of `fetchMarkdown`'s signature `QuizService` depends on. */
 export type MarkdownFetcherFn = (url: string) => Promise<{ content: string; sourceUrl: string }>;
@@ -59,5 +70,50 @@ export class QuizService {
       throw new QuizNotFoundError();
     }
     return quiz;
+  }
+
+  /**
+   * SCORE-01/03/04/05/06: scores and persists a submission. A question
+   * with no matching answer is treated as 0 (no selections, SCORE-04). An
+   * option id that doesn't belong to its question throws
+   * `InvalidAnswerError`. Duplicate submission is enforced by the
+   * repository's unique-constraint mapping to `DuplicateSubmissionError`.
+   */
+  async submitQuiz(quizId: string, answerInputs: AnswerInput[]): Promise<SubmitResponse> {
+    const quiz = await this.getQuizForSubmission(quizId);
+    const answerByQuestion = new Map(answerInputs.map((a) => [a.questionId, a]));
+
+    const scores: number[] = [];
+    const results: AnswerResult[] = [];
+    const normalizedAnswers: AnswerInput[] = [];
+
+    for (const question of quiz.questions) {
+      const answer = answerByQuestion.get(question.id) ?? {
+        questionId: question.id,
+        selectedOptionIds: [],
+      };
+
+      const validOptionIds = new Set(question.options.map((o) => o.id));
+      for (const optionId of answer.selectedOptionIds) {
+        if (!validOptionIds.has(optionId)) {
+          throw new InvalidAnswerError();
+        }
+      }
+
+      const score = scoreQuestion(
+        { questionType: question.questionType, options: question.options },
+        answer.selectedOptionIds,
+      );
+
+      scores.push(score);
+      results.push({ questionId: question.id, correct: score === FULL_SCORE, score });
+      normalizedAnswers.push({ questionId: question.id, selectedOptionIds: answer.selectedOptionIds });
+    }
+
+    const finalScore = computeFinalScore(scores);
+
+    await this.repository.createSubmission(quizId, normalizedAnswers, scores, finalScore);
+
+    return { answers: results, finalScore };
   }
 }

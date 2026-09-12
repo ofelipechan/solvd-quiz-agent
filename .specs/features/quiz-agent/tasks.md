@@ -310,9 +310,10 @@ Tasks: T27, T28, T29
 **Requirement**: SCORE-01, SCORE-03, SCORE-04, SCORE-05, SCORE-06
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Unit tests: full valid submission scores correctly; missing-question answer scores 0; option id from wrong question → `InvalidAnswerError`; already-submitted quiz → `DuplicateSubmissionError`; nonexistent quiz → `QuizNotFoundError`
+- [x] Unit tests: full valid submission scores correctly; missing-question answer scores 0; option id from wrong question → `InvalidAnswerError`; already-submitted quiz → `DuplicateSubmissionError`; nonexistent quiz → `QuizNotFoundError`
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 
