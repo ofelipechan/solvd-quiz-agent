@@ -367,9 +367,10 @@ Tasks: T27, T28, T29
 **Requirement**: (infra for UI-01..05)
 **Tools**: MCP: NONE / Skill: `react` (project's own React/Next conventions once established — Agent's Discretion: this greenfield app defines its own conventions, `react` skill's dental-CRM specifics don't apply structurally but its React 19 + Tailwind + a11y baseline does)
 **Done when**:
-- [ ] `pnpm --filter web dev` boots a blank Next.js app
+- [x] `pnpm --filter web dev` boots a blank Next.js app
 **Tests**: none
 **Gate**: build
+**Status**: ✅ Complete
 
 ---
 

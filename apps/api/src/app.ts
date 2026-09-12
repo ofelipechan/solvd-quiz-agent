@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyError } from "fastify";
 import cookie from "@fastify/cookie";
+import cors from "@fastify/cors";
 
 /**
  * A typed application error. Services throw these; the global error
@@ -26,6 +27,12 @@ export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false });
 
   app.register(cookie);
+  // Scoped to the web app's origin so the JWT cookie round-trips
+  // cross-origin in dev (Next.js on :3000, Fastify on :3001).
+  app.register(cors, {
+    origin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
+    credentials: true,
+  });
 
   app.setErrorHandler((error: FastifyError, _request, reply) => {
     if (error instanceof AppError) {
