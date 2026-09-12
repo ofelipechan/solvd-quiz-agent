@@ -22,3 +22,4 @@ function requireDatabaseUrl(): string {
 
 export type Db = ReturnType<typeof createDb>;
 export * as schema from "./schema.js";
+export * from "./schema.js";

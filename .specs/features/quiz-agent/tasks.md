@@ -167,9 +167,10 @@ Tasks: T27, T28, T29
 **Requirement**: AUTH-01, AUTH-02
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Unit tests: correct creds resolve a token; wrong password throws `InvalidCredentialsError`; unknown email throws same error (no user-enumeration leak); expired token fails `verifyToken`
+- [x] Unit tests: correct creds resolve a token; wrong password throws `InvalidCredentialsError`; unknown email throws same error (no user-enumeration leak); expired token fails `verifyToken`
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 
