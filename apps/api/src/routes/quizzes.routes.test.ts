@@ -8,6 +8,8 @@ import type { UserRepository } from "../repositories/user.repository.js";
 import type { QuizService } from "../services/quiz/quiz.service.js";
 import { SourceFetchError } from "../services/markdown/markdown-fetcher.js";
 import { GenerationFailedError } from "../services/quiz/default-generation.strategy.js";
+import { QuizNotFoundError, InvalidAnswerError } from "../services/quiz/quiz.service.js";
+import { DuplicateSubmissionError } from "../repositories/quiz.repository.js";
 import type { QuizWithQuestions } from "../repositories/quiz.repository.js";
 
 const JWT_SECRET = "test-secret";
@@ -138,6 +140,113 @@ describe("POST /api/quizzes", () => {
       method: "POST",
       url: "/api/quizzes",
       payload: { sourceUrl: "https://example.com/README.md" },
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(called).toBe(false);
+  });
+});
+
+describe("POST /api/quizzes/:id/submit", () => {
+  const QUESTION_ID = "11111111-1111-1111-1111-111111111111";
+  const OPTION_ID = "22222222-2222-2222-2222-222222222222";
+  const submitPayload = { answers: [{ questionId: QUESTION_ID, selectedOptionIds: [OPTION_ID] }] };
+
+  /** Spec AC (SCORE-01/SCORE-03): valid submission returns 200 with per-question correctness + final score. */
+  it("returns 200 with the score payload on a valid submission", async () => {
+    const { app, authService } = buildTestApp({
+      submitQuiz: async () => ({
+        answers: [{ questionId: QUESTION_ID, correct: true, score: 4 }],
+        finalScore: 4,
+      }),
+    });
+    await app.ready();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/quizzes/quiz-1/submit",
+      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      payload: submitPayload,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.finalScore).toBe(4);
+    expect(body.answers).toEqual([{ questionId: QUESTION_ID, correct: true, score: 4 }]);
+  });
+
+  /** Spec AC (SCORE-05): unknown quiz id returns 404. */
+  it("returns 404 for an unknown quiz id", async () => {
+    const { app, authService } = buildTestApp({
+      submitQuiz: async () => {
+        throw new QuizNotFoundError();
+      },
+    });
+    await app.ready();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/quizzes/missing/submit",
+      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      payload: submitPayload,
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  /** Edge case: a submitted option id that doesn't belong to its question returns 400. */
+  it("returns 400 for a mismatched option id", async () => {
+    const { app, authService } = buildTestApp({
+      submitQuiz: async () => {
+        throw new InvalidAnswerError();
+      },
+    });
+    await app.ready();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/quizzes/quiz-1/submit",
+      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      payload: submitPayload,
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  /** Spec AC (SCORE-06): resubmitting an already-submitted quiz returns 409. */
+  it("returns 409 on resubmission", async () => {
+    const { app, authService } = buildTestApp({
+      submitQuiz: async () => {
+        throw new DuplicateSubmissionError();
+      },
+    });
+    await app.ready();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/quizzes/quiz-1/submit",
+      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      payload: submitPayload,
+    });
+
+    expect(res.statusCode).toBe(409);
+  });
+
+  /** Spec AC (AUTH-03): no auth cookie returns 401 and never calls the service. */
+  it("returns 401 with no auth cookie", async () => {
+    let called = false;
+    const { app } = buildTestApp({
+      submitQuiz: async () => {
+        called = true;
+        return { answers: [], finalScore: 0 };
+      },
+    });
+    await app.ready();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/quizzes/quiz-1/submit",
+      payload: submitPayload,
     });
 
     expect(res.statusCode).toBe(401);

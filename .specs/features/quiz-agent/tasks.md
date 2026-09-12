@@ -338,9 +338,10 @@ Tasks: T27, T28, T29
 **Requirement**: SCORE-01, SCORE-03, SCORE-05, SCORE-06
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Route tests: 200 with correct score payload; 404 unknown quiz; 400 mismatched option id; 409 on resubmission; 401 with no auth cookie
+- [x] Route tests: 200 with correct score payload; 404 unknown quiz; 400 mismatched option id; 409 on resubmission; 401 with no auth cookie
 **Tests**: integration
 **Gate**: full
+**Status**: ✅ Complete
 
 ---
 
