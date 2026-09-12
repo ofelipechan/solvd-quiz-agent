@@ -195,10 +195,11 @@ Tasks: T27, T28, T29
 **Requirement**: AUTH-04
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Test seeds DB, POSTs real admin credentials to `/api/auth/login`, asserts 200
+- [x] Test seeds DB, POSTs real admin credentials to `/api/auth/login`, asserts 200
 **Tests**: integration
 **Gate**: full
 **Commit**: `feat(auth): complete login flow against seeded admin user`
+**Status**: ✅ Complete
 
 ---
 

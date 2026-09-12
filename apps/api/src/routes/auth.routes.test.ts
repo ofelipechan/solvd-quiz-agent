@@ -1,10 +1,14 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { createDb, users } from "@quiz-agent/db";
+import { seedAdminUser, ADMIN_EMAIL as SEEDED_ADMIN_EMAIL, ADMIN_PASSWORD as SEEDED_ADMIN_PASSWORD } from "@quiz-agent/db/src/seed.js";
+import { eq } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { registerAuthRoutes } from "./auth.routes.js";
 import { createAuthHook, AUTH_COOKIE_NAME } from "../plugins/auth-hook.js";
 import { AuthService } from "../services/auth/auth.service.js";
+import { UserRepository as RealUserRepository } from "../repositories/user.repository.js";
 import type { UserRepository, User } from "../repositories/user.repository.js";
 
 const JWT_SECRET = "test-secret";
@@ -108,6 +112,36 @@ describe("auth routes", () => {
       url: "/api/protected",
       cookies: { [AUTH_COOKIE_NAME]: valid },
     });
+    expect(res.statusCode).toBe(200);
+  });
+});
+
+describe("auth routes against a seeded database (integration)", () => {
+  const DATABASE_URL =
+    process.env.DATABASE_URL ?? "postgres://quiz_agent:quiz_agent@localhost:5432/quiz_agent";
+  const db = createDb(DATABASE_URL);
+
+  beforeAll(async () => {
+    await seedAdminUser(db);
+  });
+
+  afterAll(async () => {
+    await db.delete(users).where(eq(users.email, SEEDED_ADMIN_EMAIL));
+  });
+
+  /** Spec AC (AUTH-04): the seeded admin user can log in through the real route end to end. */
+  it("logs in with the seeded admin credentials", async () => {
+    const authService = new AuthService(new RealUserRepository(db), JWT_SECRET);
+    const app = buildApp();
+    registerAuthRoutes(app, authService);
+    await app.ready();
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: { email: SEEDED_ADMIN_EMAIL, password: SEEDED_ADMIN_PASSWORD },
+    });
+
     expect(res.statusCode).toBe(200);
   });
 });
