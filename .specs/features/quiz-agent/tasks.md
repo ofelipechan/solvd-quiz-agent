@@ -106,10 +106,11 @@ Tasks: T27, T28, T29
 **Requirement**: (infra for GEN-01, SCORE-03)
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] `drizzle-kit generate` produces a migration + snapshot with no manual SQL edits
-- [ ] `submissions.quiz_id` has a UNIQUE constraint (enforces SCORE-06)
+- [x] `drizzle-kit generate` produces a migration + snapshot with no manual SQL edits
+- [x] `submissions.quiz_id` has a UNIQUE constraint (enforces SCORE-06)
 **Tests**: none
 **Gate**: build
+**Status**: ✅ Complete
 
 ---
 
