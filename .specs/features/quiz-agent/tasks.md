@@ -481,10 +481,15 @@ Tasks: T27, T28, T29
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
 - [ ] Two distinct README URLs each produce a working, scored quiz (evidence: two passing e2e runs or two smoke-script outputs)
-- [ ] `pnpm -w build && pnpm -w lint && pnpm -w test` all pass with zero failures
+- [x] `pnpm -w build && pnpm -w lint && pnpm -w test` all pass with zero failures
 **Tests**: e2e
 **Gate**: build
 **Commit**: `chore(quiz-agent): verify full flow against two README sources`
+**Status**: ⚠️ Blocked on T13/T28's root cause (OpenRouter key returns `401 User not found`) — cannot produce genuine two-source live-generation evidence without a working key, and won't fabricate it. Everything not gated on live generation is green:
+- `pnpm -w build && pnpm -w lint && pnpm -w test`: all pass (build: api tsc + web `next build` clean; lint: 0 errors, 1 pre-existing unrelated warning in `auth-hook.ts`; test: 7 shared + 36 api unit + 11 web unit, all passing).
+- `pnpm --filter api test:integration`: 25/25 passing against the Dockerized Postgres (repository + both route files).
+- `pnpm --filter web test:e2e`: fails at the same point as T28 — generation returns 502 from the real OpenRouter API — confirmed by rerunning it against the live stack.
+Unblock by supplying a valid `OPENROUTER_API_KEY`, then re-run T13's script against both README URLs and `pnpm --filter web test:e2e`; if both pass, check the two boxes above and flip this to Complete.
 
 ---
 
