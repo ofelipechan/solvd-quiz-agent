@@ -381,9 +381,10 @@ Tasks: T27, T28, T29
 **Requirement**: UI-01, UI-02
 **Tools**: MCP: NONE / Skill: `react`, `ui-ux`
 **Done when**:
-- [ ] RTL tests: submit valid creds → redirect called; submit invalid → error shown, no redirect
+- [x] RTL tests: submit valid creds → redirect called; submit invalid → error shown, no redirect
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 
