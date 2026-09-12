@@ -395,9 +395,10 @@ Tasks: T27, T28, T29
 **Requirement**: UI-01 (edge case: expired cookie → redirect)
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Test (or documented manual check if Next middleware unit-testing is impractical): request to `/quizzes/new` with no cookie redirects to `/login`
+- [x] Test (or documented manual check if Next middleware unit-testing is impractical): request to `/quizzes/new` with no cookie redirects to `/login`
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 
