@@ -121,10 +121,11 @@ Tasks: T27, T28, T29
 **Requirement**: (infra, Success Criteria)
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] `docker compose up postgres` starts a healthy Postgres container
-- [ ] `drizzle-kit migrate` against the container's `DATABASE_URL` applies cleanly
+- [x] `docker compose up postgres` starts a healthy Postgres container
+- [x] `drizzle-kit migrate` against the container's `DATABASE_URL` applies cleanly
 **Tests**: none
 **Gate**: build
+**Status**: ✅ Complete
 
 ---
 
