@@ -13,7 +13,7 @@ import { getOpenRouterApiKey } from "../src/config/env.js";
 
 const SOURCE_URLS = [
   "https://raw.githubusercontent.com/pipecat-ai/pipecat/main/README.md",
-  "https://raw.githubusercontent.com/vercel/next.js/canary/README.md",
+  "https://raw.githubusercontent.com/facebook/react/main/README.md",
 ];
 
 async function run() {

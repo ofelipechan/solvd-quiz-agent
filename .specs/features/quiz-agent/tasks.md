@@ -253,11 +253,16 @@ Tasks: T27, T28, T29
 **Requirement**: GEN-08
 **Tools**: MCP: WebFetch (to pick second real README URL) / Skill: NONE
 **Done when**:
-- [ ] Script run output (pasted into task notes) shows 5-8 questions/4 options for both URLs
+- [x] Script run output (pasted into task notes) shows 5-8 questions/4 options for both URLs
 **Tests**: none (external-dependency smoke, not gated in CI)
 **Gate**: quick
 **Commit**: `feat(generation): validate quiz generation against real README sources`
-**Status**: ⚠️ Blocked — a real `OPENROUTER_API_KEY` is now present in `apps/api/.env`. Running the script surfaced and fixed a real bug in `openrouter-client.ts` (the `@openrouter/sdk` `chat.send` call needs its body nested under a `chatRequest` key; the wrapper was sending a flat body, causing an SDK-side Zod validation error on every call). After that fix, the OpenRouter API itself rejects every request with `401 {"error":{"message":"User not found.","code":401}}` (confirmed independently via a direct `curl` to `https://openrouter.ai/api/v1/chat/completions`, not just the SDK) — the configured key is not recognized by OpenRouter's account system. No fabricated output is pasted here because no successful run occurred. Unblocking requires a valid `OPENROUTER_API_KEY` (verify at https://openrouter.ai/keys that the key is active and tied to an existing account), then re-run: `pnpm --filter api exec tsx scripts/smoke-generate.ts` (loads `.env` via the shell). This also blocks T28/T29's live-generation legs.
+**Status**: ✅ Complete — valid `OPENROUTER_API_KEY` confirmed in `apps/api/.env`. The second smoke URL (`vercel/next.js` `canary/README.md`) 404s (branch/file moved), so it was swapped for `https://raw.githubusercontent.com/facebook/react/main/README.md` (verified 200 via curl). Ran `pnpm --filter api exec tsx scripts/smoke-generate.ts` (env loaded via shell, key never printed):
+```
+https://raw.githubusercontent.com/pipecat-ai/pipecat/main/README.md: 6 questions, all 4-option=true, in-range=true
+https://raw.githubusercontent.com/facebook/react/main/README.md: 6 questions, all 4-option=true, in-range=true
+```
+Both real README sources produce a valid 5-8 question / 4-option quiz. This unblocks T28/T29.
 
 ---
 
