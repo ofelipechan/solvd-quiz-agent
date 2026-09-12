@@ -257,7 +257,7 @@ Tasks: T27, T28, T29
 **Tests**: none (external-dependency smoke, not gated in CI)
 **Gate**: quick
 **Commit**: `feat(generation): validate quiz generation against real README sources`
-**Status**: ⚠️ Blocked — no `OPENROUTER_API_KEY` available in this environment. Script `apps/api/scripts/smoke-generate.ts` is written and typechecks per the task's spec, but was never executed against the real OpenRouter API, so no real output exists to paste here. Per Knowledge Verification Chain, no output is fabricated. Run manually with a real key: `OPENROUTER_API_KEY=sk-... pnpm --filter api exec tsx scripts/smoke-generate.ts`.
+**Status**: ⚠️ Blocked — a real `OPENROUTER_API_KEY` is now present in `apps/api/.env`. Running the script surfaced and fixed a real bug in `openrouter-client.ts` (the `@openrouter/sdk` `chat.send` call needs its body nested under a `chatRequest` key; the wrapper was sending a flat body, causing an SDK-side Zod validation error on every call). After that fix, the OpenRouter API itself rejects every request with `401 {"error":{"message":"User not found.","code":401}}` (confirmed independently via a direct `curl` to `https://openrouter.ai/api/v1/chat/completions`, not just the SDK) — the configured key is not recognized by OpenRouter's account system. No fabricated output is pasted here because no successful run occurred. Unblocking requires a valid `OPENROUTER_API_KEY` (verify at https://openrouter.ai/keys that the key is active and tied to an existing account), then re-run: `pnpm --filter api exec tsx scripts/smoke-generate.ts` (loads `.env` via the shell). This also blocks T28/T29's live-generation legs.
 
 ---
 

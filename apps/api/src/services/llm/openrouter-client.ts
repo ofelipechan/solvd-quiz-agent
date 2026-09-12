@@ -39,6 +39,23 @@ export class OpenRouterClient {
 
 /** Builds an `OpenRouterClient` backed by the real `@openrouter/sdk` client. */
 export function createOpenRouterClient(apiKey: string): OpenRouterClient {
-  const sdk = new OpenRouter({ apiKey }) as unknown as ChatCompletionClient;
+  const realSdk = new OpenRouter({ apiKey });
+
+  // SPEC_DEVIATION: `@openrouter/sdk`'s `chat.send` expects the request body
+  // nested under a `chatRequest` key, not the flat shape `ChatCompletionClient`
+  // exposes. This adapter translates between the two so the rest of the
+  // wrapper (and its unit tests, which mock the flat `ChatCompletionClient`
+  // shape) stay decoupled from the real SDK's exact call signature.
+  // Reason: discovered only when running the live smoke script (T13) against
+  // the real SDK, which throws a Zod validation error on the flat shape.
+  const sdk: ChatCompletionClient = {
+    chat: {
+      async send(request) {
+        const response = await realSdk.chat.send({ chatRequest: request });
+        return response as unknown as { choices: Array<{ message: { content: string } }> };
+      },
+    },
+  };
+
   return new OpenRouterClient(sdk);
 }
