@@ -36,4 +36,9 @@ export function registerQuizRoutes(app: FastifyInstance, authService: AuthServic
     const result = await quizService.submitQuiz(request.params.id, body.answers);
     reply.status(200).send(result);
   });
+
+  app.get("/api/quizzes", { onRequest }, async (_request, reply) => {
+    const summaries = await quizService.listQuizzes();
+    reply.status(200).send(summaries);
+  });
 }

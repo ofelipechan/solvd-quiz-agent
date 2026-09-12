@@ -352,10 +352,11 @@ Tasks: T27, T28, T29
 **Requirement**: HIST-01
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Route test: returns 2 seeded quizzes, one with a score, one without
+- [x] Route test: returns 2 seeded quizzes, one with a score, one without
 **Tests**: integration
 **Gate**: full
 **Commit**: `feat(api): expose quiz generation, submission, and history endpoints`
+**Status**: ✅ Complete
 
 ---
 

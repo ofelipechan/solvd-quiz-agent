@@ -7,6 +7,7 @@ import type {
   QuizWithQuestions,
   Quiz,
   NewQuestionData,
+  QuizSummary,
 } from "../../repositories/quiz.repository.js";
 
 /** Thrown when a quiz id has no matching row (SCORE-05 edge case / 404). */
@@ -115,5 +116,10 @@ export class QuizService {
     await this.repository.createSubmission(quizId, normalizedAnswers, scores, finalScore);
 
     return { answers: results, finalScore };
+  }
+
+  /** HIST-01: lists quizzes with their final score, if submitted. Thin passthrough to the repository. */
+  async listQuizzes(): Promise<QuizSummary[]> {
+    return this.repository.listQuizzes();
   }
 }

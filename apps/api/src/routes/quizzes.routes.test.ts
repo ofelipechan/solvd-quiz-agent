@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import jwt from "jsonwebtoken";
 import { buildApp } from "../app.js";
 import { registerQuizRoutes } from "./quizzes.routes.js";
@@ -18,7 +18,7 @@ function fakeAuthService(): AuthService {
   return new AuthService({} as UserRepository, JWT_SECRET);
 }
 
-function validCookie(authService: AuthService) {
+function validCookie() {
   return jwt.sign({ userId: "u1" }, JWT_SECRET, { expiresIn: "24h" });
 }
 
@@ -50,7 +50,7 @@ function buildTestApp(quizService: Partial<QuizService>) {
 describe("POST /api/quizzes", () => {
   /** Spec AC (GEN-01/GEN-07): success returns 201 with questions/options but no isCorrect flags. */
   it("returns 201 with generated questions and no isCorrect field on success", async () => {
-    const { app, authService } = buildTestApp({
+    const { app } = buildTestApp({
       createQuiz: async () => persistedQuiz,
     });
     await app.ready();
@@ -58,7 +58,7 @@ describe("POST /api/quizzes", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/quizzes",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
       payload: { sourceUrl: "https://example.com/README.md" },
     });
 
@@ -70,7 +70,7 @@ describe("POST /api/quizzes", () => {
 
   /** Spec AC (GEN-03): source fetch failure maps to 422. */
   it("returns 422 when the source fetch fails", async () => {
-    const { app, authService } = buildTestApp({
+    const { app } = buildTestApp({
       createQuiz: async () => {
         throw new SourceFetchError("unreachable", "failed to fetch source: boom");
       },
@@ -80,7 +80,7 @@ describe("POST /api/quizzes", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/quizzes",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
       payload: { sourceUrl: "https://example.com/README.md" },
     });
 
@@ -89,7 +89,7 @@ describe("POST /api/quizzes", () => {
 
   /** Spec AC (GEN-03): oversized source content maps to 422. */
   it("returns 422 when the source exceeds the size limit", async () => {
-    const { app, authService } = buildTestApp({
+    const { app } = buildTestApp({
       createQuiz: async () => {
         throw new SourceFetchError("too_large", "source content exceeds 200KB limit");
       },
@@ -99,7 +99,7 @@ describe("POST /api/quizzes", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/quizzes",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
       payload: { sourceUrl: "https://example.com/README.md" },
     });
 
@@ -108,7 +108,7 @@ describe("POST /api/quizzes", () => {
 
   /** Spec AC (GEN-06): generation failure maps to 502. */
   it("returns 502 when generation fails", async () => {
-    const { app, authService } = buildTestApp({
+    const { app } = buildTestApp({
       createQuiz: async () => {
         throw new GenerationFailedError();
       },
@@ -118,7 +118,7 @@ describe("POST /api/quizzes", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/quizzes",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
       payload: { sourceUrl: "https://example.com/README.md" },
     });
 
@@ -147,6 +147,41 @@ describe("POST /api/quizzes", () => {
   });
 });
 
+describe("GET /api/quizzes", () => {
+  /** Spec AC (HIST-01): lists quizzes with source URL/date, one with a score and one without. */
+  it("returns 2 seeded quizzes, one with a score, one without", async () => {
+    const { app } = buildTestApp({
+      listQuizzes: async () => [
+        { id: "quiz-1", sourceUrl: "https://example.com/a.md", createdAt: new Date("2026-01-01"), finalScore: 3.5 },
+        { id: "quiz-2", sourceUrl: "https://example.com/b.md", createdAt: new Date("2026-01-02"), finalScore: null },
+      ],
+    });
+    await app.ready();
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/quizzes",
+      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body).toHaveLength(2);
+    expect(body[0].finalScore).toBe(3.5);
+    expect(body[1].finalScore).toBeNull();
+  });
+
+  /** Spec AC (AUTH-03): no auth cookie returns 401. */
+  it("returns 401 with no auth cookie", async () => {
+    const { app } = buildTestApp({ listQuizzes: async () => [] });
+    await app.ready();
+
+    const res = await app.inject({ method: "GET", url: "/api/quizzes" });
+
+    expect(res.statusCode).toBe(401);
+  });
+});
+
 describe("POST /api/quizzes/:id/submit", () => {
   const QUESTION_ID = "11111111-1111-1111-1111-111111111111";
   const OPTION_ID = "22222222-2222-2222-2222-222222222222";
@@ -154,7 +189,7 @@ describe("POST /api/quizzes/:id/submit", () => {
 
   /** Spec AC (SCORE-01/SCORE-03): valid submission returns 200 with per-question correctness + final score. */
   it("returns 200 with the score payload on a valid submission", async () => {
-    const { app, authService } = buildTestApp({
+    const { app } = buildTestApp({
       submitQuiz: async () => ({
         answers: [{ questionId: QUESTION_ID, correct: true, score: 4 }],
         finalScore: 4,
@@ -165,7 +200,7 @@ describe("POST /api/quizzes/:id/submit", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/quizzes/quiz-1/submit",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
       payload: submitPayload,
     });
 
@@ -177,7 +212,7 @@ describe("POST /api/quizzes/:id/submit", () => {
 
   /** Spec AC (SCORE-05): unknown quiz id returns 404. */
   it("returns 404 for an unknown quiz id", async () => {
-    const { app, authService } = buildTestApp({
+    const { app } = buildTestApp({
       submitQuiz: async () => {
         throw new QuizNotFoundError();
       },
@@ -187,7 +222,7 @@ describe("POST /api/quizzes/:id/submit", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/quizzes/missing/submit",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
       payload: submitPayload,
     });
 
@@ -196,7 +231,7 @@ describe("POST /api/quizzes/:id/submit", () => {
 
   /** Edge case: a submitted option id that doesn't belong to its question returns 400. */
   it("returns 400 for a mismatched option id", async () => {
-    const { app, authService } = buildTestApp({
+    const { app } = buildTestApp({
       submitQuiz: async () => {
         throw new InvalidAnswerError();
       },
@@ -206,7 +241,7 @@ describe("POST /api/quizzes/:id/submit", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/quizzes/quiz-1/submit",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
       payload: submitPayload,
     });
 
@@ -215,7 +250,7 @@ describe("POST /api/quizzes/:id/submit", () => {
 
   /** Spec AC (SCORE-06): resubmitting an already-submitted quiz returns 409. */
   it("returns 409 on resubmission", async () => {
-    const { app, authService } = buildTestApp({
+    const { app } = buildTestApp({
       submitQuiz: async () => {
         throw new DuplicateSubmissionError();
       },
@@ -225,7 +260,7 @@ describe("POST /api/quizzes/:id/submit", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/quizzes/quiz-1/submit",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie(authService) },
+      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
       payload: submitPayload,
     });
 
