@@ -89,12 +89,13 @@ Tasks: T27, T28, T29
 **Requirement**: GEN-01, GEN-02
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Schemas exported and importable from both `apps/api` and `apps/web`
-- [ ] Unit tests: valid quiz passes; question with 3 options fails; `single` type with 2 correct options fails; `multiple` type with 1 correct fails; duplicate option text fails
-- [ ] Gate passes: `pnpm --filter shared test`
-- [ ] Test count: 6+ tests pass
+- [x] Schemas exported and importable from both `apps/api` and `apps/web`
+- [x] Unit tests: valid quiz passes; question with 3 options fails; `single` type with 2 correct options fails; `multiple` type with 1 correct fails; duplicate option text fails
+- [x] Gate passes: `pnpm --filter shared test`
+- [x] Test count: 6+ tests pass (7 passed)
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 
