@@ -409,9 +409,10 @@ Tasks: T27, T28, T29
 **Requirement**: UI-03, UI-05
 **Tools**: MCP: NONE / Skill: `react`, `ui-ux`
 **Done when**:
-- [ ] RTL tests: submit URL → loading shown → redirect on success; API error → message shown, input retained
+- [x] RTL tests: submit URL → loading shown → redirect on success; API error → message shown, input retained
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 
