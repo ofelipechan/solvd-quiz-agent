@@ -324,9 +324,10 @@ Tasks: T27, T28, T29
 **Requirement**: GEN-01, GEN-03, GEN-04, GEN-06, GEN-07
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] Route tests (`.inject()`, mocked service): 201 on success with no `isCorrect` in response body; 422 on fetch failure/oversized; 502 on generation failure; 401 with no auth cookie
+- [x] Route tests (`.inject()`, mocked service): 201 on success with no `isCorrect` in response body; 422 on fetch failure/oversized; 502 on generation failure; 401 with no auth cookie
 **Tests**: integration
 **Gate**: full
+**Status**: ✅ Complete
 
 ---
 
