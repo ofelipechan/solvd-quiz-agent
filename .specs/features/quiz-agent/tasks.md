@@ -437,10 +437,11 @@ Tasks: T27, T28, T29
 **Requirement**: HIST-01
 **Tools**: MCP: NONE / Skill: `react`, `ui-ux`
 **Done when**:
-- [ ] RTL test: renders 2 quizzes, one showing a score, one showing "not yet submitted" state
+- [x] RTL test: renders 2 quizzes, one showing a score, one showing "not yet submitted" state
 **Tests**: unit
 **Gate**: quick
 **Commit**: `feat(web): complete login-to-score UI flow`
+**Status**: ✅ Complete
 
 ---
 
