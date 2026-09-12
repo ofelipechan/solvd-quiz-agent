@@ -18,7 +18,9 @@ test("login, generate a quiz, answer it, submit, and see a score", async ({ page
     .fill("https://raw.githubusercontent.com/pipecat-ai/pipecat/main/README.md");
   await page.getByRole("button", { name: "Gerar quiz" }).click();
 
-  await expect(page).toHaveURL(/\/quizzes\/[^/]+$/, { timeout: 45_000 });
+  // Match a real quiz UUID, not the literal "/quizzes/new" route (which also
+  // satisfies a bare `[^/]+` pattern and would pass before generation finishes).
+  await expect(page).toHaveURL(/\/quizzes\/[0-9a-f-]{36}$/, { timeout: 45_000 });
 
   const fieldsets = page.locator("fieldset");
   const questionCount = await fieldsets.count();
