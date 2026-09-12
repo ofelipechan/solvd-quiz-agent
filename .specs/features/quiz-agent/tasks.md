@@ -152,10 +152,11 @@ Tasks: T27, T28, T29
 **Requirement**: (infra for AUTH-01..05, GEN-01..08, SCORE-01..06)
 **Tools**: MCP: NONE / Skill: NONE
 **Done when**:
-- [ ] `buildApp()` returns a Fastify instance injectable via `.inject()` in tests
-- [ ] Unhandled error returns 500 JSON, never leaks stack trace
+- [x] `buildApp()` returns a Fastify instance injectable via `.inject()` in tests
+- [x] Unhandled error returns 500 JSON, never leaks stack trace
 **Tests**: none
 **Gate**: build
+**Status**: ✅ Complete
 
 ---
 
