@@ -210,9 +210,10 @@ Tasks: T27, T28, T29
 **Requirement**: GEN-03, GEN-04, GEN-05
 **Tools**: MCP: WebFetch (to verify raw.githubusercontent.com behavior for the blob-URL rewrite) / Skill: NONE
 **Done when**:
-- [ ] Unit tests (mocked `fetch`): oversized body → `too_large`; non-2xx → `unreachable`; `content-type: image/png` → `not_text`; `github.com/x/y/blob/main/README.md` rewritten to `raw.githubusercontent.com/x/y/main/README.md` before fetch; timeout after 30s aborts
+- [x] Unit tests (mocked `fetch`): oversized body → `too_large`; non-2xx → `unreachable`; `content-type: image/png` → `not_text`; `github.com/x/y/blob/main/README.md` rewritten to `raw.githubusercontent.com/x/y/main/README.md` before fetch; timeout after 30s aborts
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
 
 ---
 
