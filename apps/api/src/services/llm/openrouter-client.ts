@@ -1,89 +1,77 @@
 import { OpenRouter } from "@openrouter/sdk";
-import { AppError } from "../../app.js";
+import type { ChatUsage } from "@openrouter/sdk/models";
+import { startActiveObservation } from "@langfuse/tracing";
 import { OPENROUTER_MODEL_ID } from "../../config/env.js";
+import type { ChatMessage } from "../../models/chat.model.js";
 
-const CHAT_TIMEOUT_MS = 30_000;
+const RESPONSE_FORMAT = { type: "json_object" } as const;
 
-/** Thrown when the OpenRouter chat completion call exceeds 30s (design's Error Handling Strategy: timeout -> 504). */
-export class LlmTimeoutError extends AppError {
-  constructor() {
-    super("quiz generation timed out", 504);
+/** Maps OpenRouter token counts onto Langfuse's generic `input`/`output`/`total` usage keys. */
+function toUsageDetails(usage: ChatUsage | undefined): Record<string, number> | undefined {
+  if (!usage) {
+    return undefined;
   }
+  return { input: usage.promptTokens, output: usage.completionTokens, total: usage.totalTokens };
 }
 
-/**
- * The slice of the `@openrouter/sdk` client surface this wrapper depends
- * on. Kept as a narrow interface (dependency inversion) so tests inject a
- * mock instead of the real SDK, and so the real SDK's exact class shape is
- * isolated to `createOpenRouterClient` below.
- */
-export interface ChatCompletionClient {
-  chat: {
-    send(request: {
-      model: string;
-      messages: Array<{ role: "user"; content: string }>;
-      response_format?: { type: "json_object" };
-    }): Promise<{ choices: Array<{ message: { content: string } }> }>;
-  };
+/** OpenRouter's billed cost (present with usage accounting) beats Langfuse's price-table estimate. */
+function toCostDetails(usage: ChatUsage | undefined): Record<string, number> | undefined {
+  return typeof usage?.cost === "number" ? { total: usage.cost } : undefined;
 }
 
 /** Thin wrapper requesting JSON-mode chat completions from OpenRouter. */
 export class OpenRouterClient {
   constructor(
-    private readonly sdk: ChatCompletionClient,
+    apiKey: string,
     private readonly model: string = OPENROUTER_MODEL_ID,
+    private readonly sdk: OpenRouter = new OpenRouter({ apiKey }),
   ) {}
 
   /**
-   * Sends `prompt` in JSON mode and returns the parsed JSON response body.
-   * Aborts with `LlmTimeoutError` (504) if OpenRouter hasn't responded within
-   * 30s, per design's Error Handling Strategy.
+   * Sends `messages` in JSON mode and returns the parsed JSON response body.
+   * Request shape follows OpenRouter's TypeScript SDK documentation. The call
+   * is traced as a Langfuse `generation` (model, messages, reply, tokens, cost).
    */
-  async chatJSON(prompt: string): Promise<unknown> {
-    let timer: NodeJS.Timeout;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new LlmTimeoutError()), CHAT_TIMEOUT_MS);
-      timer.unref?.();
-    });
-
-    let result;
-    try {
-      result = await Promise.race([
-        this.sdk.chat.send({
+  async chatJSON(messages: ChatMessage[]): Promise<unknown> {
+    return startActiveObservation(
+      "generate-completion",
+      async (generation) => {
+        generation.update({
           model: this.model,
-          messages: [{ role: "user", content: prompt }],
-          response_format: { type: "json_object" },
-        }),
-        timeout,
-      ]);
-    } finally {
-      clearTimeout(timer!);
-    }
+          input: messages,
+          modelParameters: { response_format: RESPONSE_FORMAT.type },
+        });
 
-    const content = result.choices[0]?.message?.content ?? "";
-    return JSON.parse(content);
-  }
-}
+        const result = await this.sdk.chat.send({
+          chatRequest: {
+            model: this.model,
+            messages,
+            responseFormat: RESPONSE_FORMAT,
+            stream: false,
+          },
+        });
 
-/** Builds an `OpenRouterClient` backed by the real `@openrouter/sdk` client. */
-export function createOpenRouterClient(apiKey: string): OpenRouterClient {
-  const realSdk = new OpenRouter({ apiKey });
+        if (!("choices" in result)) {
+          throw new TypeError("OpenRouter returned an unexpected streaming response");
+        }
+        generation.update({
+          // OpenRouter may route to a different model than requested; record the one that answered.
+          model: result.model || this.model,
+          usageDetails: toUsageDetails(result.usage),
+          costDetails: toCostDetails(result.usage),
+        });
 
-  // SPEC_DEVIATION: `@openrouter/sdk`'s `chat.send` expects the request body
-  // nested under a `chatRequest` key, not the flat shape `ChatCompletionClient`
-  // exposes. This adapter translates between the two so the rest of the
-  // wrapper (and its unit tests, which mock the flat `ChatCompletionClient`
-  // shape) stay decoupled from the real SDK's exact call signature.
-  // Reason: discovered only when running the live smoke script (T13) against
-  // the real SDK, which throws a Zod validation error on the flat shape.
-  const sdk: ChatCompletionClient = {
-    chat: {
-      async send(request) {
-        const response = await realSdk.chat.send({ chatRequest: request });
-        return response as unknown as { choices: Array<{ message: { content: string } }> };
+        const content = result.choices[0]?.message?.content;
+        if (typeof content !== "string") {
+          throw new SyntaxError("OpenRouter response does not contain text content");
+        }
+        // Raw text first so a malformed reply is still inspectable in the trace.
+        generation.update({ output: content });
+        const parsed: unknown = JSON.parse(content);
+        generation.update({ output: parsed });
+        return parsed;
       },
-    },
-  };
-
-  return new OpenRouterClient(sdk);
+      { asType: "generation" },
+    );
+  }
 }

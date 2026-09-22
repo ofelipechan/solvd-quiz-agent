@@ -1,16 +1,8 @@
-export interface ScoringOption {
-  id: string;
-  isCorrect: boolean;
-}
-
-export interface ScoringQuestion {
-  questionType: "single" | "multiple";
-  options: ScoringOption[];
-}
+import type { ScoringQuestion } from "../../models/quiz.model.js";
 
 const MAX_SCORE = 4;
 const MIN_SCORE = 0;
-const WEIGHT_GROWTH = 1.1;
+const WEIGHT_GROWTH_FACTOR = 1.1;
 
 /**
  * Scores one question (0-4) per SCORE-01: a `single` question scores 4 only
@@ -39,18 +31,25 @@ export function scoreQuestion(question: ScoringQuestion, selectedOptionIds: stri
 }
 
 /**
- * Weighted average final score (SCORE-02): `sum(score_i * weight_i) /
- * sum(weight_i)`, `weight_i = 1.1^(i-1)` for the i-th question (i starting
- * at 1, so `perQuestionScores[0]` gets weight `1.1^0 = 1`).
+ * Final score (SCORE-02): weighted average of per-question scores. Weight
+ * starts at 1.0 and increases by 10% for each subsequent question, keeping
+ * the result on the same 0-4 scale as an individual question.
  */
 export function computeFinalScore(perQuestionScores: number[]): number {
   if (perQuestionScores.length === 0) {
-    return 0;
+    return MIN_SCORE;
   }
 
-  const weights = perQuestionScores.map((_, index) => WEIGHT_GROWTH ** index);
-  const weightedSum = perQuestionScores.reduce((sum, score, index) => sum + score * weights[index], 0);
-  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+  const totals = perQuestionScores.reduce(
+    (result, score, index) => {
+      const weight = WEIGHT_GROWTH_FACTOR ** index;
+      return {
+        weightedScore: result.weightedScore + score * weight,
+        weight: result.weight + weight,
+      };
+    },
+    { weightedScore: 0, weight: 0 },
+  );
 
-  return weightedSum / totalWeight;
+  return totals.weightedScore / totals.weight;
 }

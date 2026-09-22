@@ -1,5 +1,6 @@
 /**
- * OpenRouter model id used for quiz generation.
+ * Default OpenRouter model id used for quiz generation, overridable via the
+ * `OPENROUTER_LLM_MODEL` env var.
  *
  * Confirmed free-tier, `structured_outputs`-capable model by querying
  * OpenRouter's live model catalog directly (`GET https://openrouter.ai/api/v1/models`,
@@ -7,12 +8,7 @@
  * `supported_parameters` including `"structured_outputs"` returned this id
  * among a handful of free, structured-output-capable models.
  */
-export const OPENROUTER_MODEL_ID = "nvidia/nemotron-3-super-120b-a12b:free";
+const DEFAULT_OPENROUTER_MODEL_ID = "nvidia/nemotron-3-super-120b-a12b:free";
 
-export function getOpenRouterApiKey(): string {
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!key) {
-    throw new Error("OPENROUTER_API_KEY environment variable is not set");
-  }
-  return key;
-}
+export const OPENROUTER_MODEL_ID =
+  process.env.OPENROUTER_LLM_MODEL || DEFAULT_OPENROUTER_MODEL_ID;

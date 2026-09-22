@@ -3,15 +3,15 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: quiz_agent
-      POSTGRES_PASSWORD: quiz_agent
-      POSTGRES_DB: quiz_agent
+      POSTGRES_USER: postgres_local
+      POSTGRES_PASSWORD: postgres_local
+      POSTGRES_DB: postgres_local
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U quiz_agent -d quiz_agent"]
+      test: ["CMD-SHELL", "pg_isready -U postgres_local -d postgres_local"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -24,7 +24,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://quiz_agent:quiz_agent@postgres:5432/quiz_agent
+      DATABASE_URL: postgres://postgres_local:postgres_local@postgres:5432/postgres_local
     ports:
       - "3001:3001"
     depends_on:

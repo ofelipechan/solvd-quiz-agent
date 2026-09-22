@@ -1,0 +1,13 @@
+[mcp_servers.postgres]
+command = "uvx"
+args = [
+    "--native-tls",
+    "--with",
+    "mcp<2",
+    "postgres-mcp",
+    "--access-mode",
+    "unrestricted",
+]
+
+[mcp_servers.postgres.env]
+DATABASE_URI = "postgresql://postgres:postgres@localhost:5432/crm_odonto"

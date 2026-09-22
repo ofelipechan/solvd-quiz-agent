@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "skills": {
+    "bdd": {
+      "hash": "sha256:eb4b8fa336be6c9ab31d14483e2349fe507b2cc3faab850faa06cd6a4edd8ad7",
+      "agents": [
+        "claude-code",
+        "codex"
+      ],
+      "scope": "project",
+      "strategy": "copy",
+      "installedAt": "2026-09-22T02:17:21.339Z"
+    },
+    "bdd-implement": {
+      "hash": "sha256:e199ea7e16091b31adcc987d6c9b59046c51a2f27eb68033ddfd409d06bada30",
+      "agents": [
+        "claude-code",
+        "codex"
+      ],
+      "scope": "project",
+      "strategy": "copy",
+      "installedAt": "2026-09-22T02:17:21.709Z"
+    },
+    "bdd-plan": {
+      "hash": "sha256:eab80e34949a4795b48f819c6bfdd3657eac4b7b00b6d2b28c4f8dcf0095dc12",
+      "agents": [
+        "claude-code",
+        "codex"
+      ],
+      "scope": "project",
+      "strategy": "copy",
+      "installedAt": "2026-09-22T02:17:21.895Z"
+    },
+    "bdd-regression": {
+      "hash": "sha256:32ea7d1ae45c54bdeb653398dbcb40ae02afd738b5121ab82dee53ba43c7edf1",
+      "agents": [
+        "claude-code",
+        "codex"
+      ],
+      "scope": "project",
+      "strategy": "copy",
+      "installedAt": "2026-09-22T02:17:22.095Z"
+    },
+    "code-review": {
+      "hash": "sha256:616c02dacec56cd47efd1ab362a5300f64ed5703d7982fe993d3ebc5ee79083e",
+      "agents": [
+        "claude-code",
+        "codex"
+      ],
+      "scope": "project",
+      "strategy": "copy",
+      "installedAt": "2026-09-22T02:17:22.287Z"
+    },
+    "domain-mapping": {
+      "hash": "sha256:1e8077b27be7334457301cd5d131cf49fa0b3dc0e28796d56bcd5c8a7d66ec3c",
+      "agents": [
+        "claude-code",
+        "codex"
+      ],
+      "scope": "project",
+      "strategy": "copy",
+      "installedAt": "2026-09-22T02:17:18.161Z"
+    },
+    "grill-me": {
+      "hash": "sha256:6a0b14c76f5097e19ef8dc0f256416b202a2f06a1dca5ceec55b9c8c1ac1dcc9",
+      "agents": [
+        "claude-code",
+        "codex"
+      ],
+      "scope": "project",
+      "strategy": "copy",
+      "installedAt": "2026-09-22T02:17:48.501Z"
+    },
+    "system-design": {
+      "hash": "sha256:c58e376ca82f456d6d6c723756dc5eb41fa189ff57644c78e3cfd127b351ff6d",
+      "agents": [
+        "claude-code",
+        "codex"
+      ],
+      "scope": "project",
+      "strategy": "copy",
+      "installedAt": "2026-09-22T02:17:18.355Z"
+    }
+  }
+}

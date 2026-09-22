@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance, type FastifyError } from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import { AppError } from "./errors/app.error.js";
 
 /**
  * A typed application error. Services throw these; the global error
@@ -8,16 +9,6 @@ import cors from "@fastify/cors";
  * of leaking a generic 500 for known failure cases (design's Error
  * Handling Strategy table).
  */
-export class AppError extends Error {
-  readonly statusCode: number;
-
-  constructor(message: string, statusCode: number) {
-    super(message);
-    this.name = new.target.name;
-    this.statusCode = statusCode;
-  }
-}
-
 /**
  * Builds a Fastify instance with cookie support and a global error handler.
  * Kept as a factory (not a module-level singleton) so tests can build a

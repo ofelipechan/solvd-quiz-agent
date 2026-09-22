@@ -1,21 +1,25 @@
 import { describe, it, expect } from "vitest";
 import jwt from "jsonwebtoken";
 import { buildApp } from "../app.js";
+import { SourceFetchError } from "../errors/source-fetch.error.js";
+import {
+  DuplicateSubmissionError,
+  GenerationFailedError,
+  InvalidAnswerError,
+  QuizNotFoundError,
+} from "../errors/quiz.errors.js";
 import { registerQuizRoutes } from "./quizzes.routes.js";
 import { AUTH_COOKIE_NAME } from "../plugins/auth-hook.js";
 import { AuthService } from "../services/auth/auth.service.js";
 import type { UserRepository } from "../repositories/user.repository.js";
 import type { QuizService } from "../services/quiz/quiz.service.js";
-import { SourceFetchError } from "../services/markdown/markdown-fetcher.js";
-import { GenerationFailedError } from "../services/quiz/default-generation.strategy.js";
-import { QuizNotFoundError, InvalidAnswerError } from "../services/quiz/quiz.service.js";
-import { DuplicateSubmissionError } from "../repositories/quiz.repository.js";
-import type { QuizWithQuestions } from "../repositories/quiz.repository.js";
+import type { QuizWithQuestions } from "../models/quiz.model.js";
 
 const JWT_SECRET = "test-secret";
+process.env.JWT_SECRET = JWT_SECRET;
 
 function fakeAuthService(): AuthService {
-  return new AuthService({} as UserRepository, JWT_SECRET);
+  return new AuthService({} as UserRepository);
 }
 
 function validCookie() {
@@ -48,137 +52,168 @@ function buildTestApp(quizService: Partial<QuizService>) {
 }
 
 describe("POST /api/quizzes", () => {
-  /** Spec AC (GEN-01/GEN-07): success returns 201 with questions/options but no isCorrect flags. */
-  it("returns 201 with generated questions and no isCorrect field on success", async () => {
-    const { app } = buildTestApp({
-      createQuiz: async () => persistedQuiz,
-    });
-    await app.ready();
+  const payload = { sourceUrl: "https://example.com/README.md" };
 
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/quizzes",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
-      payload: { sourceUrl: "https://example.com/README.md" },
+  describe("given a valid session", () => {
+    /**
+     * A created quiz never leaks which options are correct.
+     * @scenario "a created quiz is returned with its questions but without the answers"
+     */
+    it("creates the quiz without revealing correct options", async () => {
+      const { app } = buildTestApp({
+        createQuiz: async () => persistedQuiz,
+      });
+      await app.ready();
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/quizzes",
+        cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+        payload,
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.questions[0].options[0]).not.toHaveProperty("isCorrect");
+      expect(body.questions[0].options[1]).not.toHaveProperty("isCorrect");
     });
 
-    expect(res.statusCode).toBe(201);
-    const body = res.json();
-    expect(body.questions[0].options[0]).not.toHaveProperty("isCorrect");
-    expect(body.questions[0].options[1]).not.toHaveProperty("isCorrect");
+    /**
+     * An unreachable source is the caller's problem, not a server fault.
+     * @scenario "quiz creation is rejected when the source cannot be fetched"
+     */
+    it("rejects the request when the source cannot be fetched", async () => {
+      const { app } = buildTestApp({
+        createQuiz: async () => {
+          throw new SourceFetchError("unreachable", "failed to fetch source: boom");
+        },
+      });
+      await app.ready();
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/quizzes",
+        cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+        payload,
+      });
+
+      expect(res.statusCode).toBe(422);
+    });
+
+    /**
+     * An oversized source is refused as unprocessable.
+     * @scenario "quiz creation is rejected when the source is too large"
+     */
+    it("rejects the request when the source is too large", async () => {
+      const { app } = buildTestApp({
+        createQuiz: async () => {
+          throw new SourceFetchError("too_large", "source content exceeds 200KB limit");
+        },
+      });
+      await app.ready();
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/quizzes",
+        cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+        payload,
+      });
+
+      expect(res.statusCode).toBe(422);
+    });
+
+    /**
+     * A failed generation is an upstream failure.
+     * @scenario "quiz creation fails when question generation fails"
+     */
+    it("fails the request when generation fails", async () => {
+      const { app } = buildTestApp({
+        createQuiz: async () => {
+          throw new GenerationFailedError();
+        },
+      });
+      await app.ready();
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/quizzes",
+        cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+        payload,
+      });
+
+      expect(res.statusCode).toBe(502);
+    });
   });
 
-  /** Spec AC (GEN-03): source fetch failure maps to 422. */
-  it("returns 422 when the source fetch fails", async () => {
-    const { app } = buildTestApp({
-      createQuiz: async () => {
-        throw new SourceFetchError("unreachable", "failed to fetch source: boom");
-      },
+  describe("given no session", () => {
+    /**
+     * Anonymous callers cannot trigger generation.
+     * @scenario "quiz creation without a session is rejected"
+     */
+    it("is rejected as unauthenticated and nothing runs", async () => {
+      let called = false;
+      const { app } = buildTestApp({
+        createQuiz: async () => {
+          called = true;
+          return persistedQuiz;
+        },
+      });
+      await app.ready();
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/quizzes",
+        payload,
+      });
+
+      expect(res.statusCode).toBe(401);
+      expect(called).toBe(false);
     });
-    await app.ready();
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/quizzes",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
-      payload: { sourceUrl: "https://example.com/README.md" },
-    });
-
-    expect(res.statusCode).toBe(422);
-  });
-
-  /** Spec AC (GEN-03): oversized source content maps to 422. */
-  it("returns 422 when the source exceeds the size limit", async () => {
-    const { app } = buildTestApp({
-      createQuiz: async () => {
-        throw new SourceFetchError("too_large", "source content exceeds 200KB limit");
-      },
-    });
-    await app.ready();
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/quizzes",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
-      payload: { sourceUrl: "https://example.com/README.md" },
-    });
-
-    expect(res.statusCode).toBe(422);
-  });
-
-  /** Spec AC (GEN-06): generation failure maps to 502. */
-  it("returns 502 when generation fails", async () => {
-    const { app } = buildTestApp({
-      createQuiz: async () => {
-        throw new GenerationFailedError();
-      },
-    });
-    await app.ready();
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/quizzes",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
-      payload: { sourceUrl: "https://example.com/README.md" },
-    });
-
-    expect(res.statusCode).toBe(502);
-  });
-
-  /** Spec AC (AUTH-03): no auth cookie returns 401 and never calls the service. */
-  it("returns 401 with no auth cookie", async () => {
-    let called = false;
-    const { app } = buildTestApp({
-      createQuiz: async () => {
-        called = true;
-        return persistedQuiz;
-      },
-    });
-    await app.ready();
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/quizzes",
-      payload: { sourceUrl: "https://example.com/README.md" },
-    });
-
-    expect(res.statusCode).toBe(401);
-    expect(called).toBe(false);
   });
 });
 
 describe("GET /api/quizzes", () => {
-  /** Spec AC (HIST-01): lists quizzes with source URL/date, one with a score and one without. */
-  it("returns 2 seeded quizzes, one with a score, one without", async () => {
-    const { app } = buildTestApp({
-      listQuizzes: async () => [
-        { id: "quiz-1", sourceUrl: "https://example.com/a.md", createdAt: new Date("2026-01-01"), finalScore: 3.5 },
-        { id: "quiz-2", sourceUrl: "https://example.com/b.md", createdAt: new Date("2026-01-02"), finalScore: null },
-      ],
-    });
-    await app.ready();
+  describe("given a valid session", () => {
+    /**
+     * The history lists every quiz with its score, or none when unsubmitted.
+     * @scenario "the list shows each quiz with its score or no score yet"
+     */
+    it("lists every quiz with its final score", async () => {
+      const { app } = buildTestApp({
+        listQuizzes: async () => [
+          { id: "quiz-1", sourceUrl: "https://example.com/a.md", createdAt: new Date("2026-01-01"), finalScore: 3.5 },
+          { id: "quiz-2", sourceUrl: "https://example.com/b.md", createdAt: new Date("2026-01-02"), finalScore: null },
+        ],
+      });
+      await app.ready();
 
-    const res = await app.inject({
-      method: "GET",
-      url: "/api/quizzes",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
-    });
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/quizzes",
+        cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+      });
 
-    expect(res.statusCode).toBe(200);
-    const body = res.json();
-    expect(body).toHaveLength(2);
-    expect(body[0].finalScore).toBe(3.5);
-    expect(body[1].finalScore).toBeNull();
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body).toHaveLength(2);
+      expect(body[0].finalScore).toBe(3.5);
+      expect(body[1].finalScore).toBeNull();
+    });
   });
 
-  /** Spec AC (AUTH-03): no auth cookie returns 401. */
-  it("returns 401 with no auth cookie", async () => {
-    const { app } = buildTestApp({ listQuizzes: async () => [] });
-    await app.ready();
+  describe("given no session", () => {
+    /**
+     * History is private to the signed-in admin.
+     * @scenario "listing quizzes without a session is rejected"
+     */
+    it("is rejected as unauthenticated", async () => {
+      const { app } = buildTestApp({ listQuizzes: async () => [] });
+      await app.ready();
 
-    const res = await app.inject({ method: "GET", url: "/api/quizzes" });
+      const res = await app.inject({ method: "GET", url: "/api/quizzes" });
 
-    expect(res.statusCode).toBe(401);
+      expect(res.statusCode).toBe(401);
+    });
   });
 });
 
@@ -187,104 +222,197 @@ describe("POST /api/quizzes/:id/submit", () => {
   const OPTION_ID = "22222222-2222-2222-2222-222222222222";
   const submitPayload = { answers: [{ questionId: QUESTION_ID, selectedOptionIds: [OPTION_ID] }] };
 
-  /** Spec AC (SCORE-01/SCORE-03): valid submission returns 200 with per-question correctness + final score. */
-  it("returns 200 with the score payload on a valid submission", async () => {
-    const { app } = buildTestApp({
-      submitQuiz: async () => ({
-        answers: [{ questionId: QUESTION_ID, correct: true, score: 4 }],
-        finalScore: 4,
-      }),
-    });
-    await app.ready();
+  describe("given a valid session", () => {
+    /**
+     * The result carries per-question correctness and the final score.
+     * @scenario "a valid submission returns the score and per-question correctness"
+     */
+    it("returns the final score and per-question answers", async () => {
+      const { app } = buildTestApp({
+        submitQuiz: async () => ({
+          answers: [{ questionId: QUESTION_ID, correct: true, score: 4, correctOptionIds: [OPTION_ID] }],
+          finalScore: 4,
+        }),
+      });
+      await app.ready();
 
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/quizzes/quiz-1/submit",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
-      payload: submitPayload,
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/quizzes/quiz-1/submit",
+        cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+        payload: submitPayload,
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.finalScore).toBe(4);
+      expect(body.answers).toEqual([
+        { questionId: QUESTION_ID, correct: true, score: 4, correctOptionIds: [OPTION_ID] },
+      ]);
     });
 
-    expect(res.statusCode).toBe(200);
-    const body = res.json();
-    expect(body.finalScore).toBe(4);
-    expect(body.answers).toEqual([{ questionId: QUESTION_ID, correct: true, score: 4 }]);
+    /**
+     * Answers to a missing quiz cannot be scored.
+     * @scenario "submitting to an unknown quiz is rejected as not found"
+     */
+    it("is rejected as not found for an unknown quiz", async () => {
+      const { app } = buildTestApp({
+        submitQuiz: async () => {
+          throw new QuizNotFoundError();
+        },
+      });
+      await app.ready();
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/quizzes/missing/submit",
+        cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+        payload: submitPayload,
+      });
+
+      expect(res.statusCode).toBe(404);
+    });
+
+    /**
+     * An option must belong to the question it answers.
+     * @scenario "an answer with an option from another question is rejected as invalid"
+     */
+    it("is rejected as invalid for a mismatched option", async () => {
+      const { app } = buildTestApp({
+        submitQuiz: async () => {
+          throw new InvalidAnswerError();
+        },
+      });
+      await app.ready();
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/quizzes/quiz-1/submit",
+        cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+        payload: submitPayload,
+      });
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    /**
+     * A quiz is scored exactly once.
+     * @scenario "a second submission for the same quiz is rejected as a duplicate"
+     */
+    it("is rejected as a duplicate on resubmission", async () => {
+      const { app } = buildTestApp({
+        submitQuiz: async () => {
+          throw new DuplicateSubmissionError();
+        },
+      });
+      await app.ready();
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/quizzes/quiz-1/submit",
+        cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+        payload: submitPayload,
+      });
+
+      expect(res.statusCode).toBe(409);
+    });
   });
 
-  /** Spec AC (SCORE-05): unknown quiz id returns 404. */
-  it("returns 404 for an unknown quiz id", async () => {
-    const { app } = buildTestApp({
-      submitQuiz: async () => {
-        throw new QuizNotFoundError();
-      },
-    });
-    await app.ready();
+  describe("given no session", () => {
+    /**
+     * Anonymous callers cannot score or persist a submission.
+     * @scenario "submitting without a session is rejected"
+     */
+    it("is rejected as unauthenticated and nothing runs", async () => {
+      let called = false;
+      const { app } = buildTestApp({
+        submitQuiz: async () => {
+          called = true;
+          return { answers: [], finalScore: 0 };
+        },
+      });
+      await app.ready();
 
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/quizzes/missing/submit",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
-      payload: submitPayload,
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/quizzes/quiz-1/submit",
+        payload: submitPayload,
+      });
+
+      expect(res.statusCode).toBe(401);
+      expect(called).toBe(false);
+    });
+  });
+});
+
+describe("GET /api/quizzes/:id", () => {
+  const detail = {
+    id: persistedQuiz.id,
+    sourceUrl: persistedQuiz.sourceUrl,
+    createdAt: persistedQuiz.createdAt,
+    questions: persistedQuiz.questions.map((q) => ({
+      ...q,
+      options: q.options.map(({ id, text }) => ({ id, text })),
+    })),
+    submission: null,
+  };
+
+  describe("given a valid session", () => {
+    /**
+     * An unsubmitted quiz opens with its questions, no answers, no submission.
+     * @scenario "an unsubmitted quiz opens with its questions and no submission"
+     */
+    it("returns the quiz detail", async () => {
+      const { app } = buildTestApp({ getQuiz: async () => detail });
+      await app.ready();
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/quizzes/quiz-1",
+        cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.id).toBe("quiz-1");
+      expect(body.submission).toBeNull();
+      expect(body.questions[0].options[0]).not.toHaveProperty("isCorrect");
     });
 
-    expect(res.statusCode).toBe(404);
+    /**
+     * An unknown quiz has nothing to open.
+     * @scenario "opening an unknown quiz is rejected as not found"
+     */
+    it("is rejected as not found for an unknown quiz", async () => {
+      const { app } = buildTestApp({
+        getQuiz: async () => {
+          throw new QuizNotFoundError();
+        },
+      });
+      await app.ready();
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/quizzes/missing",
+        cookies: { [AUTH_COOKIE_NAME]: validCookie() },
+      });
+
+      expect(res.statusCode).toBe(404);
+    });
   });
 
-  /** Edge case: a submitted option id that doesn't belong to its question returns 400. */
-  it("returns 400 for a mismatched option id", async () => {
-    const { app } = buildTestApp({
-      submitQuiz: async () => {
-        throw new InvalidAnswerError();
-      },
+  describe("given no session", () => {
+    /**
+     * Quiz detail is private to the signed-in admin.
+     * @scenario "opening a quiz without a session is rejected"
+     */
+    it("is rejected as unauthenticated", async () => {
+      const { app } = buildTestApp({ getQuiz: async () => detail });
+      await app.ready();
+
+      const res = await app.inject({ method: "GET", url: "/api/quizzes/quiz-1" });
+
+      expect(res.statusCode).toBe(401);
     });
-    await app.ready();
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/quizzes/quiz-1/submit",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
-      payload: submitPayload,
-    });
-
-    expect(res.statusCode).toBe(400);
-  });
-
-  /** Spec AC (SCORE-06): resubmitting an already-submitted quiz returns 409. */
-  it("returns 409 on resubmission", async () => {
-    const { app } = buildTestApp({
-      submitQuiz: async () => {
-        throw new DuplicateSubmissionError();
-      },
-    });
-    await app.ready();
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/quizzes/quiz-1/submit",
-      cookies: { [AUTH_COOKIE_NAME]: validCookie() },
-      payload: submitPayload,
-    });
-
-    expect(res.statusCode).toBe(409);
-  });
-
-  /** Spec AC (AUTH-03): no auth cookie returns 401 and never calls the service. */
-  it("returns 401 with no auth cookie", async () => {
-    let called = false;
-    const { app } = buildTestApp({
-      submitQuiz: async () => {
-        called = true;
-        return { answers: [], finalScore: 0 };
-      },
-    });
-    await app.ready();
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/quizzes/quiz-1/submit",
-      payload: submitPayload,
-    });
-
-    expect(res.statusCode).toBe(401);
-    expect(called).toBe(false);
   });
 });

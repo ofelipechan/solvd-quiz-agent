@@ -1,11 +1,13 @@
 import type {
   LoginRequest,
   CreateQuizRequest,
+  QuizDetailResponse,
   SubmitRequest,
   SubmitResponse,
-} from "@quiz-agent/shared";
+} from "@/lib/types/api";
+import { clearAuthenticated } from "./auth";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 /** Public quiz shape returned by the API — no `isCorrect` flags. */
 export interface PublicOption {
@@ -27,6 +29,9 @@ export interface PublicQuiz {
   createdAt: string;
   questions: PublicQuestion[];
 }
+
+/** Quiz plus its submission (null until submitted) — `GET /api/quizzes/:id`. */
+export type QuizDetail = QuizDetailResponse;
 
 export interface QuizSummary {
   id: string;
@@ -62,6 +67,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
+    if (res.status === 401) {
+      clearAuthenticated();
+    }
     let message = `request failed with status ${res.status}`;
     try {
       const body = (await res.json()) as { error?: string };
@@ -95,4 +103,5 @@ export const quizClient = {
       body: JSON.stringify(body),
     }),
   listQuizzes: () => request<QuizSummary[]>("/api/quizzes"),
+  getQuiz: (quizId: string) => request<QuizDetail>(`/api/quizzes/${quizId}`),
 };

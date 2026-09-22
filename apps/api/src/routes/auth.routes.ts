@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { LoginRequestSchema } from "@quiz-agent/shared";
+import { LoginRequestSchema } from "../schemas/api.schema.js";
 import type { AuthService } from "../services/auth/auth.service.js";
 import { AUTH_COOKIE_NAME } from "../plugins/auth-hook.js";
 

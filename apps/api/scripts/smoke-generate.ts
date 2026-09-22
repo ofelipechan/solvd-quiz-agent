@@ -7,9 +7,8 @@
  *   OPENROUTER_API_KEY=sk-... pnpm --filter api exec tsx scripts/smoke-generate.ts
  */
 import { fetchMarkdown } from "../src/services/markdown/markdown-fetcher.js";
-import { createOpenRouterClient } from "../src/services/llm/openrouter-client.js";
+import { OpenRouterClient } from "../src/services/llm/openrouter-client.js";
 import { DefaultGenerationStrategy } from "../src/services/quiz/default-generation.strategy.js";
-import { getOpenRouterApiKey } from "../src/config/env.js";
 
 const SOURCE_URLS = [
   "https://raw.githubusercontent.com/pipecat-ai/pipecat/main/README.md",
@@ -17,7 +16,7 @@ const SOURCE_URLS = [
 ];
 
 async function run() {
-  const client = createOpenRouterClient(getOpenRouterApiKey());
+  const client = OpenRouterClient.create();
   const strategy = new DefaultGenerationStrategy(client);
 
   for (const url of SOURCE_URLS) {

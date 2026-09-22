@@ -9,27 +9,34 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --ext .ts",
     "test": "vitest run --config vitest.config.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file=.env node_modules/drizzle-kit/bin.cjs migrate",
+    "db:seed": "tsx --env-file=.env src/db/seed.ts"
   },
   "dependencies": {
-    "@openrouter/sdk": "^1.2.119",
-    "@quiz-agent/db": "workspace:*",
-    "@quiz-agent/shared": "workspace:*",
-    "fastify": "^5.1.0",
     "@fastify/cookie": "^11.0.1",
     "@fastify/cors": "^10.0.1",
-    "fastify-type-provider-zod": "^4.0.2",
+    "@langfuse/otel": "5.11.1",
+    "@langfuse/tracing": "5.11.1",
+    "@openrouter/sdk": "^1.2.119",
+    "@opentelemetry/sdk-node": "0.222.0",
     "bcrypt": "^5.1.1",
+    "drizzle-orm": "^0.36.4",
+    "fastify": "^5.1.0",
+    "fastify-type-provider-zod": "^4.0.2",
     "jsonwebtoken": "^9.0.2",
-    "zod": "^3.23.8",
-    "drizzle-orm": "^0.36.4"
+    "pg": "^8.13.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.9.0",
+    "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.28.1",
     "tsx": "^4.19.2",
-    "vitest": "^2.1.4",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   }
 }

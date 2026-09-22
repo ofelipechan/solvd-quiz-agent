@@ -8,12 +8,16 @@
   "packageManager": "pnpm@10.10.0",
   "scripts": {
     "dev": "docker compose up -d postgres && pnpm --parallel --filter @quiz-agent/api --filter @quiz-agent/web run dev",
+    "dev:web": "pnpm --filter @quiz-agent/web run dev",
     "build": "pnpm -r --if-present run build",
     "lint": "pnpm -r --if-present run lint",
     "test": "pnpm -r --if-present run test",
     "test:integration": "pnpm -r --if-present run test:integration",
     "test:e2e": "pnpm -r --if-present run test:e2e",
-    "docker:up": "docker compose up --build"
+    "docker:up": "docker compose up --build",
+    "db:migrate": "pnpm --filter @quiz-agent/api run db:migrate",
+    "db:seed": "pnpm --filter @quiz-agent/api run db:seed",
+    "bdd:check": "node .claude/hooks/bdd-parity.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

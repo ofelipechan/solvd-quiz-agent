@@ -1,0 +1,60 @@
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface CreateQuizRequest {
+  sourceUrl: string;
+}
+
+export interface AnswerInput {
+  questionId: string;
+  selectedOptionIds: string[];
+}
+
+export interface SubmitRequest {
+  answers: AnswerInput[];
+}
+
+export interface AnswerResult {
+  questionId: string;
+  correct: boolean;
+  score: number;
+  correctOptionIds: string[];
+}
+
+export interface SubmitResponse {
+  answers: AnswerResult[];
+  finalScore: number;
+}
+
+export interface PublicOption {
+  id: string;
+  text: string;
+}
+
+export interface PublicQuestion {
+  id: string;
+  orderIndex: number;
+  text: string;
+  questionType: "single" | "multiple";
+  options: PublicOption[];
+}
+
+export interface SubmittedAnswer extends AnswerResult {
+  selectedOptionIds: string[];
+}
+
+export interface QuizSubmission {
+  finalScore: number;
+  submittedAt: string;
+  answers: SubmittedAnswer[];
+}
+
+export interface QuizDetailResponse {
+  id: string;
+  sourceUrl: string;
+  createdAt: string;
+  questions: PublicQuestion[];
+  submission: QuizSubmission | null;
+}

@@ -1,12 +1,6 @@
 import { eq } from "drizzle-orm";
-import { users, type Db } from "@quiz-agent/db";
-
-export interface User {
-  id: string;
-  email: string;
-  passwordHash: string;
-  createdAt: Date;
-}
+import { users, type Db } from "../db/client.js";
+import type { User } from "../models/user.model.js";
 
 /** Data access for the `users` table only. */
 export class UserRepository {

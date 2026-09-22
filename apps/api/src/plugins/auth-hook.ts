@@ -1,14 +1,8 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { AppError } from "../app.js";
+import { UnauthorizedError } from "../errors/auth.errors.js";
 import type { AuthService } from "../services/auth/auth.service.js";
 
 export const AUTH_COOKIE_NAME = "auth_token";
-
-class UnauthorizedError extends AppError {
-  constructor() {
-    super("unauthorized", 401);
-  }
-}
 
 /**
  * Fastify `onRequest` hook: rejects with 401 when the auth cookie is

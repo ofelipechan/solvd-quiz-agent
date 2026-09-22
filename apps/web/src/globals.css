@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — mirrors docs/solvd-style-guide.md.
+ * Season Sans / Season Mix are commercial; Inter + Instrument Serif are the
+ * closest open substitutes and are loaded from index.html.
+ */
+@theme {
+  --font-sans: "Inter", "Season Sans", Arial, Helvetica, sans-serif;
+  --font-serif: "Instrument Serif", "Season Mix", Georgia, "Times New Roman", serif;
+
+  /* neutrals */
+  --color-ink: #1a1a1a;
+  --color-sand: #faf6e1;
+
+  /* brand greens */
+  --color-forest-900: #08100f;
+  --color-forest-800: #122723;
+  --color-forest-400: #627367;
+  --color-forest-300: #bfccbe;
+  --color-forest-200: #e0e5da;
+  --color-forest-100: #f1f5ed;
+  --color-forest-deep: #004d20;
+
+  /* accents */
+  --color-lime-500: #00cc44;
+  --color-lime-200: #bbff99;
+  --color-lime-100: #ecffe2;
+  --color-ember-500: #ff7a45;
+  --color-ember-700: #b44a3c;
+  --color-azure-500: #3377ff;
+  --color-azure-200: #99ccff;
+  --color-azure-800: #1b3098;
+
+  /* warm grays */
+  --color-warm-700: #383536;
+  --color-warm-400: #665e5c;
+  --color-warm-300: #bfbbba;
+  --color-warm-200: #e5e3e1;
+  --color-warm-100: #f7f6f5;
+
+  --color-danger: #ef4444;
+
+  /* fluid type scale (480px → 1200px) */
+  --text-display: clamp(2.625rem, 2.625rem + ((1vw - 0.3rem) * 2.778), 3.875rem);
+  --text-display--line-height: 1.13;
+  --text-h2: clamp(2.25rem, 2.25rem + ((1vw - 0.3rem) * 2.222), 3.25rem);
+  --text-h2--line-height: 1.15;
+  --text-h3: clamp(1.625rem, 1.625rem + ((1vw - 0.3rem) * 2.222), 2.625rem);
+  --text-h3--line-height: 1.18;
+  --text-h4: clamp(1.4rem, 1.4rem + ((1vw - 0.3rem) * 1.333), 2rem);
+  --text-h4--line-height: 1.2;
+  --text-h5: clamp(1.3rem, 1.3rem + ((1vw - 0.3rem) * 1), 1.75rem);
+  --text-h5--line-height: 1.28;
+  --text-lead: clamp(1.125rem, 1.125rem + ((1vw - 0.3rem) * 0.278), 1.25rem);
+  --text-lead--line-height: 1.4;
+  --text-body: clamp(1rem, 1rem + ((1vw - 0.3rem) * 0.278), 1.125rem);
+  --text-body--line-height: 1.4;
+  --text-ui: clamp(0.875rem, 0.875rem + ((1vw - 0.3rem) * 0.278), 1rem);
+  --text-ui--line-height: 1.55;
+
+  --tracking-body: 0.02em;
+
+  /* fluid spacing */
+  --spacing-fluid-xs: clamp(1.125rem, 0.875rem + 0.833vw, 1.5rem);
+  --spacing-fluid-sm: clamp(1.375rem, 0.958rem + 1.389vw, 2rem);
+  --spacing-fluid-md: clamp(2rem, 1.667rem + 1.111vw, 2.5rem);
+  --spacing-fluid-lg: clamp(2.625rem, 1.708rem + 3.056vw, 4rem);
+  --spacing-fluid-xl: clamp(3.625rem, 2.042rem + 5.278vw, 6rem);
+  --spacing-fluid-2xl: clamp(4.5rem, 2.167rem + 7.778vw, 8rem);
+
+  --radius-card: 10px;
+  --radius-pill: 100px;
+
+  --container-site: 1320px;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-white font-sans text-body tracking-body text-ink;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-serif font-normal tracking-normal;
+  }
+
+  :focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 0.2em;
+  }
+
+  ::selection {
+    background: var(--color-lime-200);
+    color: var(--color-ink);
+  }
+}
+
+/* Four 6px squares at the corners of a framed block (style guide §7.6). */
+@utility corner-dots {
+  --corner-dots-color: var(--color-forest-200);
+  --corner-dots-size: 6px;
+  --corner-dots-offset: -4px;
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: var(--corner-dots-offset);
+    pointer-events: none;
+    z-index: 1;
+    background-image:
+      linear-gradient(var(--corner-dots-color), var(--corner-dots-color)),
+      linear-gradient(var(--corner-dots-color), var(--corner-dots-color)),
+      linear-gradient(var(--corner-dots-color), var(--corner-dots-color)),
+      linear-gradient(var(--corner-dots-color), var(--corner-dots-color));
+    background-position:
+      top 0 left 0,
+      top 0 right 0,
+      bottom 0 left 0,
+      bottom 0 right 0;
+    background-repeat: no-repeat;
+    background-size: var(--corner-dots-size) var(--corner-dots-size);
+  }
+}
+
+/* Sliding orange text highlight (style guide §3.5). */
+@utility text-bg-highlight {
+  --text-bg-highlight-color: var(--color-ember-500);
+  display: inline;
+  padding-inline: 0.1em;
+  background-image: linear-gradient(90deg, var(--text-bg-highlight-color), var(--text-bg-highlight-color));
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: 100% 100%;
+  animation: text-bg-highlight-reveal 1s ease both;
+}
+
+@keyframes text-bg-highlight-reveal {
+  from {
+    background-size: 0 100%;
+  }
+  to {
+    background-size: 100% 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .text-bg-highlight {
+    animation: none;
+  }
+}
+
+/* Dark surfaces: error text needs a warmer, higher-contrast tone on deep green. */
+@layer components {
+  .is-dark {
+    --color-danger: var(--color-ember-500);
+  }
+}

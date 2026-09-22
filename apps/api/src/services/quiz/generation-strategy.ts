@@ -1,4 +1,4 @@
-import type { GeneratedQuiz } from "@quiz-agent/shared";
+import type { GeneratedQuiz } from "../../schemas/generation.schema.js";
 
 /**
  * Turns Markdown source text into a validated quiz. Left as an interface

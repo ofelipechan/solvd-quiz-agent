@@ -1,68 +1,16 @@
 import { eq, sql } from "drizzle-orm";
-import { quizzes, questions, options, submissions, answers, type Db } from "@quiz-agent/db";
-import type { AnswerInput } from "@quiz-agent/shared";
-import { AppError } from "../app.js";
-
-/** Thrown when `createSubmission` hits the DB unique constraint on `submissions.quiz_id` (SCORE-06). */
-export class DuplicateSubmissionError extends AppError {
-  constructor() {
-    super("quiz already submitted", 409);
-  }
-}
-
-export interface NewOptionData {
-  text: string;
-  isCorrect: boolean;
-}
-
-export interface NewQuestionData {
-  text: string;
-  questionType: "single" | "multiple";
-  options: NewOptionData[];
-}
-
-export interface NewQuizData {
-  sourceUrl: string;
-  questions: NewQuestionData[];
-}
-
-export interface Quiz {
-  id: string;
-  sourceUrl: string;
-  createdAt: Date;
-}
-
-export interface OptionRow {
-  id: string;
-  text: string;
-  isCorrect: boolean;
-}
-
-export interface QuestionRow {
-  id: string;
-  orderIndex: number;
-  text: string;
-  questionType: "single" | "multiple";
-  options: OptionRow[];
-}
-
-export interface QuizWithQuestions extends Quiz {
-  questions: QuestionRow[];
-}
-
-export interface Submission {
-  id: string;
-  quizId: string;
-  finalScore: number;
-  submittedAt: Date;
-}
-
-export interface QuizSummary {
-  id: string;
-  sourceUrl: string;
-  createdAt: Date;
-  finalScore: number | null;
-}
+import { quizzes, questions, options, submissions, answers, type Db } from "../db/client.js";
+import type { AnswerInput } from "../schemas/api.schema.js";
+import { DuplicateSubmissionError } from "../errors/quiz.errors.js";
+import type {
+  NewQuizData,
+  QuestionRow,
+  Quiz,
+  QuizSummary,
+  QuizWithQuestions,
+  Submission,
+  SubmissionWithAnswers,
+} from "../models/quiz.model.js";
 
 /** Postgres unique-violation SQLSTATE code. */
 const UNIQUE_VIOLATION = "23505";
@@ -106,8 +54,12 @@ export class QuizRepository {
     });
   }
 
-  /** Loads a quiz with its full question/option tree, ordered by `orderIndex`. */
-  async findQuizWithQuestions(id: string): Promise<QuizWithQuestions | null> {
+  /**
+   * Loads a quiz with its full question/option tree, ordered by `orderIndex`.
+   * `isCorrect` is omitted from options unless `includeIsCorrect` is true —
+   * it's a back-end-only attribute (scoring), callers opt in explicitly.
+   */
+  async findQuizWithQuestions(id: string, includeIsCorrect = false): Promise<QuizWithQuestions | null> {
     const [quizRow] = await this.db.select().from(quizzes).where(eq(quizzes.id, id));
     if (!quizRow) {
       return null;
@@ -121,13 +73,21 @@ export class QuizRepository {
 
     const questionsWithOptions: QuestionRow[] = [];
     for (const q of questionRows) {
-      const optionRows = await this.db.select().from(options).where(eq(options.questionId, q.id));
+      const optionRows = await this.db
+        .select({
+          id: options.id,
+          text: options.text,
+          ...(includeIsCorrect ? { isCorrect: options.isCorrect } : {}),
+        })
+        .from(options)
+        .where(eq(options.questionId, q.id));
+
       questionsWithOptions.push({
         id: q.id,
         orderIndex: q.orderIndex,
         text: q.text,
         questionType: q.questionType,
-        options: optionRows.map((o) => ({ id: o.id, text: o.text, isCorrect: o.isCorrect })),
+        options: optionRows,
       });
     }
 
@@ -182,6 +142,35 @@ export class QuizRepository {
       }
       throw err;
     }
+  }
+
+  /** Loads a quiz's submission with its per-question answers, or null when not yet submitted (HIST-03). */
+  async findSubmissionWithAnswers(quizId: string): Promise<SubmissionWithAnswers | null> {
+    const [submissionRow] = await this.db.select().from(submissions).where(eq(submissions.quizId, quizId));
+    if (!submissionRow) {
+      return null;
+    }
+
+    const answerRows = await this.db
+      .select({
+        questionId: answers.questionId,
+        selectedOptionIds: answers.selectedOptionIds,
+        score: answers.score,
+      })
+      .from(answers)
+      .where(eq(answers.submissionId, submissionRow.id));
+
+    return {
+      id: submissionRow.id,
+      quizId: submissionRow.quizId,
+      finalScore: Number(submissionRow.finalScore),
+      submittedAt: submissionRow.submittedAt,
+      answers: answerRows.map((a) => ({
+        questionId: a.questionId,
+        selectedOptionIds: a.selectedOptionIds,
+        score: Number(a.score),
+      })),
+    };
   }
 
   /** Lists all quizzes with their final score, if submitted (HIST-01). */

@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Solvd Quiz Agent Architecture",
+    "quality_profile": "showcase",
+    "viewBox": [1280, 760],
+    "views": [
+      {
+        "id": "quiz-generation",
+        "label": "Quiz generation",
+        "focus": ["learner", "web", "api-routes", "quiz-service", "markdown-fetcher", "openrouter-client", "openrouter", "repositories", "postgres"],
+        "note": "Follow a source URL through content retrieval, AI generation, persistence, and return to the learner."
+      },
+      {
+        "id": "authentication",
+        "label": "Authentication",
+        "focus": ["learner", "web", "api-routes", "auth-service", "repositories", "postgres"],
+        "note": "Login issues a JWT; protected quiz routes verify it before service execution."
+      },
+      {
+        "id": "observability",
+        "label": "Observability",
+        "focus": ["api-routes", "quiz-service", "openrouter-client", "langfuse"],
+        "note": "Fastify propagates request context; QuizService and OpenRouterClient create observations exported to Langfuse."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "learner",
+      "type": "external",
+      "label": "Learner",
+      "sublabel": "Browser user",
+      "pos": [50, 330],
+      "size": [130, 64]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "React Web App",
+      "sublabel": "Vite · React Router · :3000",
+      "pos": [240, 330],
+      "size": [170, 70]
+    },
+    {
+      "id": "api-routes",
+      "type": "backend",
+      "label": "Fastify API",
+      "sublabel": "Auth + quiz routes · :3001",
+      "pos": [480, 330],
+      "size": [170, 70]
+    },
+    {
+      "id": "auth-service",
+      "type": "security",
+      "label": "AuthService",
+      "sublabel": "bcrypt · JWT",
+      "pos": [720, 130],
+      "size": [160, 66]
+    },
+    {
+      "id": "quiz-service",
+      "type": "backend",
+      "label": "QuizService",
+      "sublabel": "Generation · submission · scoring",
+      "pos": [720, 330],
+      "size": [180, 70]
+    },
+    {
+      "id": "markdown-fetcher",
+      "type": "backend",
+      "label": "Markdown Fetcher",
+      "sublabel": "GitHub blob or HTTP URL",
+      "pos": [720, 535],
+      "size": [180, 66]
+    },
+    {
+      "id": "openrouter-client",
+      "type": "backend",
+      "label": "OpenRouterClient",
+      "sublabel": "Generation observation · JSON mode",
+      "pos": [1000, 535],
+      "size": [180, 66]
+    },
+    {
+      "id": "openrouter",
+      "type": "external",
+      "label": "OpenRouter API",
+      "sublabel": "Hosted model inference",
+      "pos": [1000, 650],
+      "size": [180, 66],
+      "brand": "openrouter"
+    },
+    {
+      "id": "repositories",
+      "type": "backend",
+      "label": "Repositories",
+      "sublabel": "QuizRepository · UserRepository",
+      "pos": [990, 330],
+      "size": [190, 70]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": "Drizzle ORM · :5432",
+      "pos": [990, 130],
+      "size": [190, 66],
+      "brand": "postgresql"
+    },
+    {
+      "id": "langfuse",
+      "type": "external",
+      "label": "Langfuse",
+      "sublabel": "OpenTelemetry traces",
+      "pos": [480, 650],
+      "size": [170, 66]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Web application",
+      "wraps": ["web"],
+      "pad": 28
+    },
+    {
+      "kind": "region",
+      "label": "API application",
+      "wraps": ["api-routes", "auth-service", "quiz-service", "markdown-fetcher", "openrouter-client", "repositories"],
+      "pad": 30
+    },
+    {
+      "kind": "security-group",
+      "label": "Protected quiz endpoints",
+      "wraps": ["api-routes", "auth-service"],
+      "pad": 18
+    }
+  ],
+  "connections": [
+    {
+      "id": "learner-web",
+      "from": "learner",
+      "to": "web",
+      "label": "uses",
+      "variant": "emphasis"
+    },
+    {
+      "id": "web-api",
+      "from": "web",
+      "to": "api-routes",
+      "label": "JSON over HTTP · JWT cookie",
+      "variant": "emphasis",
+      "labelAt": [445, 414]
+    },
+    {
+      "id": "routes-auth",
+      "from": "api-routes",
+      "to": "auth-service",
+      "label": "login / verify JWT",
+      "variant": "security"
+    },
+    {
+      "id": "routes-quiz",
+      "from": "api-routes",
+      "to": "quiz-service",
+      "label": "create · list · submit · detail",
+      "variant": "emphasis",
+      "labelAt": [600, 430]
+    },
+    {
+      "id": "auth-repositories",
+      "from": "auth-service",
+      "to": "repositories",
+      "label": "find user",
+      "via": [[930, 163], [930, 280], [960, 280], [960, 365]]
+    },
+    {
+      "id": "quiz-fetch",
+      "from": "quiz-service",
+      "to": "markdown-fetcher",
+      "label": "fetch source Markdown",
+      "labelAt": [810, 430]
+    },
+    {
+      "id": "quiz-openrouter-client",
+      "from": "quiz-service",
+      "to": "openrouter-client",
+      "label": "generate questions",
+      "variant": "emphasis"
+    },
+    {
+      "id": "client-openrouter",
+      "from": "openrouter-client",
+      "to": "openrouter",
+      "label": "SDK chat request · JSON mode",
+      "variant": "emphasis",
+      "labelAt": [1090, 615]
+    },
+    {
+      "id": "quiz-repositories",
+      "from": "quiz-service",
+      "to": "repositories",
+      "label": "save / query / submit",
+      "labelAt": [805, 300]
+    },
+    {
+      "id": "repositories-postgres",
+      "from": "repositories",
+      "to": "postgres",
+      "label": "SQL via Drizzle",
+      "labelAt": [1140, 250]
+    },
+    {
+      "id": "quiz-langfuse",
+      "from": "quiz-service",
+      "to": "langfuse",
+      "label": "create-quiz · fetch · persist spans",
+      "variant": "dashed"
+    },
+    {
+      "id": "client-langfuse",
+      "from": "openrouter-client",
+      "to": "langfuse",
+      "label": "generation · tokens · cost",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Runtime",
+      "items": ["React SPA calls Fastify JSON endpoints", "Docker Compose runs web, API, and PostgreSQL"]
+    },
+    {
+      "dot": "violet",
+      "title": "Quiz generation",
+      "items": ["QuizService orchestrates source retrieval and generation", "OpenRouterClient sends JSON-mode requests to OpenRouter"]
+    },
+    {
+      "dot": "emerald",
+      "title": "Persistence & telemetry",
+      "items": ["QuizService owns root and step observations", "OpenRouterClient records model, response, tokens, and cost"]
+    }
+  ]
+}

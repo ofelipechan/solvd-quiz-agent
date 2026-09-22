@@ -1,29 +1,24 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { AppError } from "../../app.js";
+import { InvalidCredentialsError } from "../../errors/auth.errors.js";
+import type { VerifiedToken } from "../../models/auth.model.js";
 import type { UserRepository } from "../../repositories/user.repository.js";
 
 const TOKEN_EXPIRY = "24h";
 
-/** Thrown on any login failure. Deliberately the same error for a wrong
- * password and an unknown email, so the response never leaks which one
- * happened (no user-enumeration). */
-export class InvalidCredentialsError extends AppError {
-  constructor() {
-    super("invalid credentials", 401);
-  }
-}
-
-export interface VerifiedToken {
-  userId: string;
-}
-
 /** Verifies credentials against the seeded user store and issues/verifies JWTs. */
 export class AuthService {
+  private readonly jwtSecret: string;
+
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly jwtSecret: string,
-  ) {}
+  ) {
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error("JWT_SECRET environment variable is not set");
+    }
+    this.jwtSecret = jwtSecret;
+  }
 
   async login(email: string, password: string): Promise<{ token: string }> {
     const user = await this.userRepository.findByEmail(email);
