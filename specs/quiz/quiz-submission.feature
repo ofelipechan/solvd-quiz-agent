@@ -5,8 +5,8 @@ Feature: Submit answers to a quiz and receive the score
 
   # Single-pass: one submission per quiz; a second attempt is refused as a
   # duplicate. Missing answers score 0 rather than rejecting the submission.
-  # The correct option ids are revealed only in the submission result.
-  # Spec: SCORE-01..06.
+  # The correct option ids are revealed only in the submission result, along
+  # with each question's weight. Spec: SCORE-01..06.
 
   Background:
     Given the admin is signed in with a valid session
@@ -21,7 +21,7 @@ Feature: Submit answers to a quiz and receive the score
     When the admin submits one answer per question
     Then the submission succeeds
     And the result carries the final score
-    And each answer carries its question, whether it was correct, its score and the correct option ids
+    And each answer carries its question, whether it was correct, its score, its weight and the correct option ids
 
   @integration
   Scenario: submitting to an unknown quiz is rejected as not found
@@ -55,6 +55,17 @@ Feature: Submit answers to a quiz and receive the score
     When both questions are answered correctly
     Then each answer reports correct, score 4 and its correct option ids
     And the final score is 4
+
+  @unit
+  Scenario: the final score honours the stored question weights
+    Given the single-answer question weighs 20 and the multiple-answer question weighs 80
+    When only the single-answer question is answered correctly
+    Then the final score is 0.8
+
+  @unit
+  Scenario: each answer reports the weight of its question
+    When both questions are answered
+    Then each answer carries the weight stored for its question
 
   @unit
   Scenario: a question left unanswered scores 0

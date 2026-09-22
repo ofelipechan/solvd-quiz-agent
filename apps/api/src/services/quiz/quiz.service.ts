@@ -16,7 +16,7 @@ import type {
 } from "../../models/quiz.model.js";
 import type { QuizRepository } from "../../repositories/quiz.repository.js";
 import type { QuestionGenerationStrategy } from "./generation-strategy.js";
-import { scoreQuestion, computeFinalScore } from "./scoring.service.js";
+import { scoreQuestion, computeFinalScore, assignWeights } from "./scoring.service.js";
 
 /**
  * Conservative floor below which a source cannot plausibly yield 5
@@ -41,6 +41,7 @@ function reviewSubmission(
       questionId: question.id,
       selectedOptionIds: answer.selectedOptionIds,
       score: answer.score,
+      weight: question.weight,
       correct: answer.score === FULL_SCORE,
       correctOptionIds: question.options.filter((o) => o.isCorrect).map((o) => o.id),
     };
@@ -78,10 +79,12 @@ export class QuizService {
       // Step 2 - Generate strategy
       const generated = await this.generationStrategy.generate(content);
 
-      // Step 3 - Generate questions
-      const questionsData: NewQuestionData[] = generated.questions.map((q) => ({
+      // Step 3 - Shape questions and assign each its share of the final score
+      const weights = assignWeights(generated.questions.length);
+      const questionsData: NewQuestionData[] = generated.questions.map((q, index) => ({
         text: q.text,
         questionType: q.questionType,
+        weight: weights[index],
         options: q.options,
       }));
 
@@ -145,6 +148,7 @@ export class QuizService {
     const answerByQuestion = new Map(answerInputs.map((a) => [a.questionId, a]));
 
     const scores: number[] = [];
+    const weights: number[] = [];
     const results: AnswerResult[] = [];
     const normalizedAnswers: AnswerInput[] = [];
 
@@ -166,11 +170,12 @@ export class QuizService {
       const correctOptionIds = scoringOptions.filter((o) => o.isCorrect).map((o) => o.id);
 
       scores.push(score);
-      results.push({ questionId: question.id, correct: score === FULL_SCORE, score, correctOptionIds });
+      weights.push(question.weight);
+      results.push({ questionId: question.id, correct: score === FULL_SCORE, score, weight: question.weight, correctOptionIds });
       normalizedAnswers.push({ questionId: question.id, selectedOptionIds: answer.selectedOptionIds });
     }
 
-    const finalScore = computeFinalScore(scores);
+    const finalScore = computeFinalScore(scores, weights);
 
     await this.repository.createSubmission(quizId, normalizedAnswers, scores, finalScore);
 

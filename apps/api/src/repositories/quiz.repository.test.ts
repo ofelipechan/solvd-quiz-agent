@@ -13,6 +13,7 @@ const sampleQuiz: NewQuizData = {
     {
       text: "question 1",
       questionType: "single",
+      weight: 50,
       options: [
         { text: "a", isCorrect: true },
         { text: "b", isCorrect: false },
@@ -23,6 +24,7 @@ const sampleQuiz: NewQuizData = {
     {
       text: "question 2",
       questionType: "multiple",
+      weight: 50,
       options: [
         { text: "a", isCorrect: true },
         { text: "b", isCorrect: true },

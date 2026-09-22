@@ -6,8 +6,10 @@ Feature: Quiz page - answer, submit and review
   # Loads the quiz named in the address. Single-answer -> radios, multiple
   # -> checkboxes. Button "Submit answers". After submit (or when the quiz was
   # already submitted): per-question correctness, the correct option marked
-  # with a check mark, "Final score: N.NN", inputs locked, no submit button.
-  # Unknown quiz -> "quiz not found". Spec: UI-03, UI-04, HIST-02, HIST-03, SCORE-05.
+  # with a check mark, each question's weight, "Final score: N.N%" (derived
+  # from the 0-4 score: 4 -> 100.0%), inputs locked, no submit button. Weights
+  # are hidden while answering. Unknown quiz -> "quiz not found".
+  # Spec: UI-03, UI-04, HIST-02, HIST-03, SCORE-05.
 
   # ============================================================
   # Group: Loading and rendering
@@ -46,14 +48,32 @@ Feature: Quiz page - answer, submit and review
     Given the quiz has one single-answer question and submitting will score it 4
     When the admin picks the correct option and presses "Submit answers"
     Then the question is marked correct with a check mark on the correct option
-    And "Final score: 4.00" is shown
+    And "Final score: 100.0%" is shown
+
+  @integration
+  Scenario: the final score is shown as a percentage with one decimal
+    Given the quiz was already submitted with finalScore 3.5
+    When the page opens
+    Then "Final score: 87.5%" is shown
 
   @integration
   Scenario: the results explain how the final score is weighted
     Given the quiz was already submitted
     When the page opens
-    Then the results explain that the final score is a weighted average
-    And the results explain that each question is worth 10 percent more than the previous one
+    Then the results explain that the final score is a weighted average of the question weights
+    And the results do not claim that each question is worth 10 percent more than the previous one
+
+  @integration
+  Scenario: each reviewed question shows its weight
+    Given the quiz was already submitted and its question weighs 20
+    When the page opens
+    Then "Weight: 20%" is shown on that question
+
+  @integration
+  Scenario: weights are hidden while answering
+    Given the quiz has not been submitted and its question weighs 20
+    When the page opens
+    Then no weight is shown
 
   @integration
   Scenario: an already-submitted quiz opens in review mode
@@ -61,5 +81,5 @@ Feature: Quiz page - answer, submit and review
     When the page opens
     Then the admin's selection is pre-checked and every input is locked
     And the correct option is marked with a check mark
-    And "Final score: 4.00" is shown
+    And "Final score: 100.0%" is shown
     And there is no "Submit answers" button

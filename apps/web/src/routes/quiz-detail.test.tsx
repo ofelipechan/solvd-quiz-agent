@@ -27,6 +27,7 @@ const singleQuiz = {
       orderIndex: 1,
       text: "What is 2+2?",
       questionType: "single" as const,
+      weight: 20,
       options: [
         { id: "o1", text: "3" },
         { id: "o2", text: "4" },
@@ -43,6 +44,7 @@ const multiQuiz = {
       orderIndex: 1,
       text: "Pick even numbers",
       questionType: "multiple" as const,
+      weight: 100,
       options: [
         { id: "o1", text: "2" },
         { id: "o2", text: "3" },
@@ -57,11 +59,18 @@ const submittedQuiz = {
   submission: {
     finalScore: 4,
     submittedAt: "2026-01-02T00:00:00Z",
-    answers: [{ questionId: "q1", selectedOptionIds: ["o2"], score: 4, correct: true, correctOptionIds: ["o2"] }],
+    answers: [
+      { questionId: "q1", selectedOptionIds: ["o2"], score: 4, weight: 20, correct: true, correctOptionIds: ["o2"] },
+    ],
   },
 };
 
-function seedQuiz(quiz: typeof singleQuiz | typeof multiQuiz | typeof submittedQuiz) {
+const partiallyScoredQuiz = {
+  ...submittedQuiz,
+  submission: { ...submittedQuiz.submission, finalScore: 3.5 },
+};
+
+function seedQuiz(quiz: typeof singleQuiz | typeof multiQuiz | typeof submittedQuiz | typeof partiallyScoredQuiz) {
   vi.mocked(quizClient.getQuiz).mockResolvedValueOnce(quiz);
 }
 
@@ -103,7 +112,7 @@ describe("<QuizPage/>", () => {
     it("marks the answer correct and shows the final score after submit", async () => {
       seedQuiz(singleQuiz);
       vi.mocked(quizClient.submitQuiz).mockResolvedValueOnce({
-        answers: [{ questionId: "q1", correct: true, score: 4, correctOptionIds: ["o2"] }],
+        answers: [{ questionId: "q1", correct: true, score: 4, weight: 20, correctOptionIds: ["o2"] }],
         finalScore: 4,
       });
       const user = userEvent.setup();
@@ -114,8 +123,20 @@ describe("<QuizPage/>", () => {
       await user.click(screen.getByRole("button", { name: /submit answers/i }));
 
       expect(await screen.findByText(/correct/i)).toBeInTheDocument();
-      expect(screen.getByText(/final score: 4\.00/i)).toBeInTheDocument();
+      expect(screen.getByText(/final score: 100\.0%/i)).toBeInTheDocument();
       expect(screen.getByText("✓")).toBeInTheDocument();
+    });
+
+    /**
+     * Stakes stay hidden until the answers are revealed.
+     * @scenario "weights are hidden while answering"
+     */
+    it("shows no weight before submitting", async () => {
+      seedQuiz(singleQuiz);
+      render(<QuizPage />);
+
+      await screen.findAllByRole("radio");
+      expect(screen.queryByText(/weight/i)).not.toBeInTheDocument();
     });
   });
 
@@ -146,23 +167,42 @@ describe("<QuizPage/>", () => {
       expect(radios[1]).toBeChecked();
       radios.forEach((radio) => expect(radio).toBeDisabled());
       expect(screen.getByText("✓")).toBeInTheDocument();
-      expect(screen.getByText(/final score: 4\.00/i)).toBeInTheDocument();
+      expect(screen.getByText(/final score: 100\.0%/i)).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /submit answers/i })).not.toBeInTheDocument();
+    });
+
+    /**
+     * The 0-4 score is shown as a percentage with one decimal.
+     * @scenario "the final score is shown as a percentage with one decimal"
+     */
+    it("shows 3.5 as 87.5%", async () => {
+      seedQuiz(partiallyScoredQuiz);
+      render(<QuizPage />);
+
+      expect(await screen.findByText(/final score: 87\.5%/i)).toBeInTheDocument();
     });
 
     /**
      * The scoring rule is explained so the number is not a mystery.
      * @scenario "the results explain how the final score is weighted"
      */
-    it("explains the weighted average and the 10% step", async () => {
+    it("explains the weighted average without the old 10% step", async () => {
       seedQuiz(submittedQuiz);
       render(<QuizPage />);
 
-      expect(
-        await screen.findByText(
-          /weighted average.*each question is worth 10% more than the previous one/i,
-        ),
-      ).toBeInTheDocument();
+      expect(await screen.findByText(/weighted average.*question weights/i)).toBeInTheDocument();
+      expect(screen.queryByText(/10% more than the previous one/i)).not.toBeInTheDocument();
+    });
+
+    /**
+     * In review, each question says how much it counted.
+     * @scenario "each reviewed question shows its weight"
+     */
+    it("shows the question weight", async () => {
+      seedQuiz(submittedQuiz);
+      render(<QuizPage />);
+
+      expect(await screen.findByText(/weight: 20%/i)).toBeInTheDocument();
     });
   });
 

@@ -26,6 +26,7 @@ export const AnswerResultSchema = z.object({
   questionId: z.string().uuid(),
   correct: z.boolean(),
   score: z.number(),
+  weight: z.number(),
   correctOptionIds: z.array(z.string().uuid()),
 });
 export type AnswerResult = z.infer<typeof AnswerResultSchema>;
@@ -47,6 +48,7 @@ export const PublicQuestionSchema = z.object({
   orderIndex: z.number().int(),
   text: z.string(),
   questionType: z.enum(["single", "multiple"]),
+  weight: z.number(),
   options: z.array(PublicOptionSchema),
 });
 export type PublicQuestion = z.infer<typeof PublicQuestionSchema>;

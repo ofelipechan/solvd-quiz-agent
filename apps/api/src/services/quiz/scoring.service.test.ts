@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ScoringQuestion } from "../../models/quiz.model.js";
-import { scoreQuestion, computeFinalScore } from "./scoring.service.js";
+import { scoreQuestion, computeFinalScore, assignWeights } from "./scoring.service.js";
 
 const singleQuestion: ScoringQuestion = {
   questionType: "single",
@@ -76,29 +76,75 @@ describe("scoreQuestion()", () => {
   });
 });
 
+describe("assignWeights()", () => {
+  /**
+   * Weights are an equal split of 100 across the questions.
+   * @scenario "weights are split equally across the questions"
+   */
+  it("gives 5 questions 20 each", () => {
+    expect(assignWeights(5)).toEqual([20, 20, 20, 20, 20]);
+  });
+
+  /**
+   * Two-decimal rounding leaves a remainder that the last question absorbs.
+   * @scenario "weights keep two decimals and the last question absorbs the rounding remainder"
+   */
+  it("gives 3 questions 33.33, 33.33 and 33.34", () => {
+    const weights = assignWeights(3);
+    expect(weights).toEqual([33.33, 33.33, 33.34]);
+    expect(weights.reduce((sum, w) => sum + w, 0)).toBeCloseTo(100, 10);
+  });
+
+  /**
+   * When rounding overshoots, the last question weighs less than the others.
+   * @scenario "a remainder can also lower the last weight"
+   */
+  it("gives 7 questions 14.29 x6 and 14.26", () => {
+    const weights = assignWeights(7);
+    expect(weights).toEqual([14.29, 14.29, 14.29, 14.29, 14.29, 14.29, 14.26]);
+    expect(weights.reduce((sum, w) => sum + w, 0)).toBeCloseTo(100, 10);
+  });
+
+  /**
+   * Nothing to weigh yields nothing.
+   * @scenario "assigning weights to no questions yields no weights"
+   */
+  it("gives no weights for 0 questions", () => {
+    expect(assignWeights(0)).toEqual([]);
+  });
+});
+
 describe("computeFinalScore()", () => {
   /**
-   * Weights start at 1.0 and grow geometrically by 10%.
+   * Each score is scaled by its question's weight and divided by the total weight.
    * @scenario "the final score is a weighted average of per-question scores"
    */
-  it("scores about 1.9048 for 4 then 0", () => {
-    expect(computeFinalScore([4, 0])).toBeCloseTo(1.9048, 4);
+  it("scores 0.8 for 4 and 0 weighted 20 and 80", () => {
+    expect(computeFinalScore([4, 0], [20, 80])).toBeCloseTo(0.8, 10);
   });
 
   /**
-   * A later question influences the result more than an earlier one.
-   * @scenario "each later question weighs 10 percent more than the previous one"
+   * The heavier question dominates the result.
+   * @scenario "a heavier question moves the final score more"
    */
-  it("scores about 2.0952 for 0 then 4", () => {
-    expect(computeFinalScore([0, 4])).toBeCloseTo(2.0952, 4);
+  it("scores 3.2 for 0 and 4 weighted 20 and 80", () => {
+    expect(computeFinalScore([0, 4], [20, 80])).toBeCloseTo(3.2, 10);
   });
 
   /**
-   * Averaging never lowers a perfect quiz.
+   * A partial score is weighted the same way as a full one.
+   * @scenario "partial credit is weighted like any other score"
+   */
+  it("scores 3 for 4 and 2 weighted 50 and 50", () => {
+    expect(computeFinalScore([4, 2], [50, 50])).toBeCloseTo(3, 10);
+  });
+
+  /**
+   * Averaging never lowers a perfect quiz, even with uneven rounded weights.
    * @scenario "a fully correct quiz keeps the maximum score"
    */
   it("scores 4 for three perfect answers", () => {
-    expect(computeFinalScore([4, 4, 4])).toBe(4);
+    expect(computeFinalScore([4, 4, 4], [33.33, 33.33, 33.34])).toBeCloseTo(4, 10);
   });
 
   /**
@@ -106,6 +152,14 @@ describe("computeFinalScore()", () => {
    * @scenario "a quiz with no questions scores 0"
    */
   it("scores 0 for no questions", () => {
-    expect(computeFinalScore([])).toBe(0);
+    expect(computeFinalScore([], [])).toBe(0);
+  });
+
+  /**
+   * Every score needs exactly one weight.
+   * @scenario "mismatched scores and weights are rejected"
+   */
+  it("rejects 2 scores with 3 weights", () => {
+    expect(() => computeFinalScore([4, 0], [20, 30, 50])).toThrow();
   });
 });

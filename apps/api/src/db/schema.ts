@@ -32,6 +32,8 @@ export const questions = pgTable("questions", {
   orderIndex: integer("order_index").notNull(),
   text: text("text").notNull(),
   questionType: questionTypeEnum("question_type").notNull(),
+  /** Share of the final score in percent (0-100, two decimals); a quiz's weights add up to 100. */
+  weight: numeric("weight", { precision: 5, scale: 2 }).notNull().default("0"),
 });
 
 export const options = pgTable("options", {

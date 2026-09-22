@@ -36,6 +36,7 @@ export class QuizRepository {
             orderIndex: index + 1,
             text: question.text,
             questionType: question.questionType,
+            weight: question.weight.toFixed(2),
           })
           .returning();
 
@@ -87,6 +88,7 @@ export class QuizRepository {
         orderIndex: q.orderIndex,
         text: q.text,
         questionType: q.questionType,
+        weight: Number(q.weight),
         options: optionRows,
       });
     }

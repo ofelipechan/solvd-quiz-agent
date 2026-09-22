@@ -20,6 +20,8 @@ export interface PublicQuestion {
   orderIndex: number;
   text: string;
   questionType: "single" | "multiple";
+  /** Share of the final score, in percent; a quiz's weights add up to 100. */
+  weight: number;
   options: PublicOption[];
 }
 

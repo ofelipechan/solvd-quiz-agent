@@ -1,6 +1,7 @@
 import type { AnswerResult } from "@/lib/types/api";
 import type { PublicQuestion } from "@/lib/api-client";
 import { cn } from "@/lib/helpers/cn";
+import { formatWeight } from "@/lib/helpers/score-percentage";
 import { OptionRow, type OptionReviewState } from "@/components/quiz/controls/option-row";
 
 interface QuestionCardProps {
@@ -54,14 +55,17 @@ export function QuestionCard({ index, question, selected, result, disabled, onTo
       </div>
 
       {result && (
-        <p
-          className={cn(
-            "mt-5 inline-flex items-center gap-2 text-ui font-medium",
-            result.correct ? "text-forest-deep" : "text-ember-700",
-          )}
-        >
-          {result.correct ? "Correct" : "Incorrect"} — {result.score.toFixed(2)} points
-        </p>
+        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p
+            className={cn(
+              "inline-flex items-center gap-2 text-ui font-medium",
+              result.correct ? "text-forest-deep" : "text-ember-700",
+            )}
+          >
+            {result.correct ? "Correct" : "Incorrect"} — {result.score.toFixed(2)} points
+          </p>
+          <p className="text-sm text-warm-400">Weight: {formatWeight(result.weight)}</p>
+        </div>
       )}
     </fieldset>
   );

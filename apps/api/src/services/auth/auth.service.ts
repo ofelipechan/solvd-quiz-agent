@@ -23,11 +23,13 @@ export class AuthService {
   async login(email: string, password: string): Promise<{ token: string }> {
     const user = await this.userRepository.findByEmail(email);
     if (!user) {
+      console.log("user don't exist");
       throw new InvalidCredentialsError();
     }
 
     const matches = await bcrypt.compare(password, user.passwordHash);
     if (!matches) {
+      console.log("credentials don't match");
       throw new InvalidCredentialsError();
     }
 

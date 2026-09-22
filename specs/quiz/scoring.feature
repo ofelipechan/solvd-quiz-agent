@@ -1,13 +1,16 @@
 Feature: Scoring rules for one question and for the whole quiz
   As the admin taking a quiz
-  I want each answer scored 0-4 and the quiz scored as a weighted average
+  I want each answer scored 0-4 and the quiz scored as a weighted average of question weights
   So that the result is predictable and partial credit on multiple-answer questions counts
 
   # Per question: 4 for a correct single answer, 0 for a wrong one, and for a
   # multiple-answer question 4 * (correct picks / correct options) with no
-  # penalty for extra wrong picks. Final score = weighted average of
-  # per-question scores on a 0-4 scale. The first question has weight 1.0;
-  # each subsequent question's weight is 10% greater than the previous one.
+  # penalty for extra wrong picks. Every question carries a weight, assigned
+  # when the quiz is created as an equal split of 100 across the questions
+  # (two decimals; the last question absorbs the rounding remainder so the
+  # weights add up to exactly 100). Final score = sum(score * weight) /
+  # sum(weight), kept on the same 0-4 scale as a question. The percentage
+  # shown to the user is derived: finalScore / 4 * 100.
 
   Background:
     Given a single-answer question with 1 correct option out of 4
@@ -48,25 +51,82 @@ Feature: Scoring rules for one question and for the whole quiz
     Then the question scores 0
 
   # ============================================================
+  # Group: Question weights
+  # ============================================================
+
+  @unit
+  Scenario: weights are split equally across the questions
+    When weights are assigned to 5 questions
+    Then every question weighs 20
+
+  @unit
+  Scenario: weights keep two decimals and the last question absorbs the rounding remainder
+    When weights are assigned to 3 questions
+    Then the first two questions weigh 33.33
+    And the last question weighs 33.34
+    And the weights add up to 100
+
+  @unit
+  Scenario: a remainder can also lower the last weight
+    When weights are assigned to 7 questions
+    Then the first six questions weigh 14.29
+    And the last question weighs 14.26
+    And the weights add up to 100
+
+  @unit
+  Scenario: assigning weights to no questions yields no weights
+    When weights are assigned to 0 questions
+    Then no weights are produced
+
+  # ============================================================
   # Group: Final score
   # ============================================================
 
   @unit
   Scenario: the final score is a weighted average of per-question scores
-    When per-question scores 4 and 0 are combined
-    Then the final score is approximately 1.9048
+    When per-question scores 4 and 0 with weights 20 and 80 are combined
+    Then the final score is 0.8
 
   @unit
-  Scenario: each later question weighs 10 percent more than the previous one
-    When per-question scores 0 and 4 are combined
-    Then the final score is approximately 2.0952
+  Scenario: a heavier question moves the final score more
+    When per-question scores 0 and 4 with weights 20 and 80 are combined
+    Then the final score is 3.2
+
+  @unit
+  Scenario: partial credit is weighted like any other score
+    When per-question scores 4 and 2 with weights 50 and 50 are combined
+    Then the final score is 3
 
   @unit
   Scenario: a fully correct quiz keeps the maximum score
-    When per-question scores 4, 4 and 4 are combined
+    When per-question scores 4, 4 and 4 with weights 33.33, 33.33 and 33.34 are combined
     Then the final score is 4
 
   @unit
   Scenario: a quiz with no questions scores 0
     When no per-question scores are combined
     Then the final score is 0
+
+  @unit
+  Scenario: mismatched scores and weights are rejected
+    When 2 per-question scores are combined with 3 weights
+    Then combining is rejected as invalid
+
+  # ============================================================
+  # Group: Percentage
+  # ============================================================
+
+  @unit
+  Scenario: the maximum score is 100 percent
+    When a final score of 4 is expressed as a percentage
+    Then the percentage is 100
+
+  @unit
+  Scenario: half the maximum score is 50 percent
+    When a final score of 2 is expressed as a percentage
+    Then the percentage is 50
+
+  @unit
+  Scenario: the percentage keeps fractions
+    When a final score of 3.5 is expressed as a percentage
+    Then the percentage is 87.5

@@ -5,7 +5,8 @@ Feature: Generate a quiz from a Markdown URL
 
   # The flow is fetch -> generate -> persist; a failure at any step stops the
   # flow and nothing partial is stored. Correct answers are never exposed when
-  # a quiz is created (GEN-07). The strategy that turns Markdown into
+  # a quiz is created (GEN-07). Before persisting, every question receives a
+  # weight: an equal split of 100 across the questions (see scoring.feature). The strategy that turns Markdown into
   # questions is specified in question-generation-strategy.feature.
 
   Background:
@@ -20,6 +21,7 @@ Feature: Generate a quiz from a Markdown URL
     When the admin creates a quiz from a Markdown URL
     Then the quiz is created
     And the questions and their options are returned
+    And each question carries its weight
     And no option reveals whether it is correct
 
   @integration
@@ -64,6 +66,13 @@ Feature: Generate a quiz from a Markdown URL
     Then the source is fetched before questions are generated
     And questions are generated before the quiz is persisted
     And the persisted quiz with its questions and options is returned
+
+  @unit
+  Scenario: every generated question is persisted with an equal-split weight
+    Given generation produces 3 questions
+    When a quiz is created from a source URL
+    Then the questions are persisted with weights 33.33, 33.33 and 33.34
+    And the weights add up to 100
 
   @unit
   Scenario: a fetch failure stops the flow before generation

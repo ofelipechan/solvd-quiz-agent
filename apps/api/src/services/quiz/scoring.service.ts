@@ -2,7 +2,13 @@ import type { ScoringQuestion } from "../../models/quiz.model.js";
 
 const MAX_SCORE = 4;
 const MIN_SCORE = 0;
-const WEIGHT_GROWTH_FACTOR = 1.1;
+const TOTAL_WEIGHT = 100;
+const WEIGHT_DECIMALS = 2;
+
+function roundWeight(value: number): number {
+  const factor = 10 ** WEIGHT_DECIMALS;
+  return Math.round(value * factor) / factor;
+}
 
 /**
  * Scores one question (0-4) per SCORE-01: a `single` question scores 4 only
@@ -31,25 +37,40 @@ export function scoreQuestion(question: ScoringQuestion, selectedOptionIds: stri
 }
 
 /**
- * Final score (SCORE-02): weighted average of per-question scores. Weight
- * starts at 1.0 and increases by 10% for each subsequent question, keeping
- * the result on the same 0-4 scale as an individual question.
+ * Splits 100 equally across `count` questions, two decimals each. The last
+ * question absorbs the rounding remainder so the weights add up to exactly
+ * 100 (e.g. 3 -> 33.33, 33.33, 33.34; 7 -> 14.29 x6, 14.26).
  */
-export function computeFinalScore(perQuestionScores: number[]): number {
+export function assignWeights(count: number): number[] {
+  if (count <= 0) {
+    return [];
+  }
+  const share = roundWeight(TOTAL_WEIGHT / count);
+  const weights = Array.from({ length: count }, () => share);
+  const allButLast = share * (count - 1);
+  weights[count - 1] = roundWeight(TOTAL_WEIGHT - allButLast);
+  return weights;
+}
+
+/**
+ * Final score (SCORE-02): `sum(score * weight) / sum(weight)`, one weight per
+ * question, so the result stays on the same 0-4 scale as a single question.
+ */
+export function computeFinalScore(perQuestionScores: number[], weights: number[]): number {
+  if (perQuestionScores.length !== weights.length) {
+    throw new Error("each per-question score needs exactly one weight");
+  }
   if (perQuestionScores.length === 0) {
     return MIN_SCORE;
   }
 
   const totals = perQuestionScores.reduce(
-    (result, score, index) => {
-      const weight = WEIGHT_GROWTH_FACTOR ** index;
-      return {
-        weightedScore: result.weightedScore + score * weight,
-        weight: result.weight + weight,
-      };
-    },
+    (result, score, index) => ({
+      weightedScore: result.weightedScore + score * weights[index],
+      weight: result.weight + weights[index],
+    }),
     { weightedScore: 0, weight: 0 },
   );
 
-  return totals.weightedScore / totals.weight;
+  return totals.weight === 0 ? MIN_SCORE : totals.weightedScore / totals.weight;
 }

@@ -47,6 +47,7 @@ const persistedQuiz: QuizWithQuestions = {
       orderIndex: 1,
       text: "q1",
       questionType: "single",
+      weight: 100,
       options: [
         { id: "o1", text: "a", isCorrect: true },
         { id: "o2", text: "b", isCorrect: false },
@@ -67,6 +68,7 @@ const twoQuestionQuiz: QuizWithQuestions = {
       orderIndex: 1,
       text: "single question",
       questionType: "single",
+      weight: 20,
       options: [
         { id: "q1-a", text: "a", isCorrect: true },
         { id: "q1-b", text: "b", isCorrect: false },
@@ -79,6 +81,7 @@ const twoQuestionQuiz: QuizWithQuestions = {
       orderIndex: 2,
       text: "multiple question",
       questionType: "multiple",
+      weight: 80,
       options: [
         { id: "q2-a", text: "a", isCorrect: true },
         { id: "q2-b", text: "b", isCorrect: true },
@@ -140,6 +143,26 @@ describe("QuizService", () => {
 
         expect(calls).toEqual(["fetch", "generate", "persist"]);
         expect(result).toEqual(persistedQuiz);
+      });
+
+      /**
+       * Weights are assigned before persisting, as an equal split that adds up to 100.
+       * @scenario "every generated question is persisted with an equal-split weight"
+       */
+      it("persists 3 questions weighing 33.33, 33.33 and 33.34", async () => {
+        const { fetchMarkdown, strategy, repository } = buildCollaborators();
+        const question = generatedQuiz.questions[0];
+        (strategy.generate as ReturnType<typeof vi.fn>).mockResolvedValue({
+          questions: [question, { ...question, text: "q2" }, { ...question, text: "q3" }],
+        });
+
+        const service = new QuizService(fetchMarkdown, strategy, repository);
+        await service.createQuiz("https://example.com/README.md");
+
+        const persisted = (repository.createQuizWithQuestions as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        const weights = persisted.questions.map((q: { weight: number }) => q.weight);
+        expect(weights).toEqual([33.33, 33.33, 33.34]);
+        expect(weights.reduce((sum: number, w: number) => sum + w, 0)).toBeCloseTo(100, 10);
       });
     });
 
@@ -381,10 +404,37 @@ describe("QuizService", () => {
         ]);
 
         expect(result.answers).toEqual([
-          { questionId: "q1", correct: true, score: 4, correctOptionIds: ["q1-a"] },
-          { questionId: "q2", correct: true, score: 4, correctOptionIds: ["q2-a", "q2-b"] },
+          { questionId: "q1", correct: true, score: 4, weight: 20, correctOptionIds: ["q1-a"] },
+          { questionId: "q2", correct: true, score: 4, weight: 80, correctOptionIds: ["q2-a", "q2-b"] },
         ]);
         expect(result.finalScore).toBe(4);
+      });
+
+      /**
+       * The stored weights, not the question order, decide how much each answer counts.
+       * @scenario "the final score honours the stored question weights"
+       */
+      it("scores 0.8 when only the 20-weight question is right", async () => {
+        const { service } = buildSubmitService();
+
+        const result = await service.submitQuiz("quiz-2", [{ questionId: "q1", selectedOptionIds: ["q1-a"] }]);
+
+        expect(result.finalScore).toBeCloseTo(0.8, 10);
+      });
+
+      /**
+       * The review needs each question's weight to explain the final score.
+       * @scenario "each answer reports the weight of its question"
+       */
+      it("carries the stored weight on every answer", async () => {
+        const { service } = buildSubmitService();
+
+        const result = await service.submitQuiz("quiz-2", [
+          { questionId: "q1", selectedOptionIds: ["q1-b"] },
+          { questionId: "q2", selectedOptionIds: ["q2-a"] },
+        ]);
+
+        expect(result.answers.map((a) => a.weight)).toEqual([20, 80]);
       });
 
       /**
@@ -397,8 +447,8 @@ describe("QuizService", () => {
         const result = await service.submitQuiz("quiz-2", [{ questionId: "q1", selectedOptionIds: ["q1-a"] }]);
 
         expect(result.answers).toEqual([
-          { questionId: "q1", correct: true, score: 4, correctOptionIds: ["q1-a"] },
-          { questionId: "q2", correct: false, score: 0, correctOptionIds: ["q2-a", "q2-b"] },
+          { questionId: "q1", correct: true, score: 4, weight: 20, correctOptionIds: ["q1-a"] },
+          { questionId: "q2", correct: false, score: 0, weight: 80, correctOptionIds: ["q2-a", "q2-b"] },
         ]);
       });
 
@@ -490,7 +540,9 @@ describe("QuizService", () => {
         expect(detail.submission).toEqual({
           finalScore: 4,
           submittedAt: submission.submittedAt,
-          answers: [{ questionId: "q1", selectedOptionIds: ["o1"], score: 4, correct: true, correctOptionIds: ["o1"] }],
+          answers: [
+            { questionId: "q1", selectedOptionIds: ["o1"], score: 4, weight: 100, correct: true, correctOptionIds: ["o1"] },
+          ],
         });
         expect(detail.questions[0].options.every((o) => !("isCorrect" in o))).toBe(true);
       });

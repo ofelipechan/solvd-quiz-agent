@@ -6,6 +6,8 @@ export interface NewOptionData {
 export interface NewQuestionData {
   text: string;
   questionType: "single" | "multiple";
+  /** Share of the final score, in percent; all weights of a quiz add up to 100. */
+  weight: number;
   options: NewOptionData[];
 }
 
@@ -31,6 +33,7 @@ export interface QuestionRow {
   orderIndex: number;
   text: string;
   questionType: "single" | "multiple";
+  weight: number;
   options: OptionRow[];
 }
 
@@ -56,9 +59,10 @@ export interface SubmissionWithAnswers extends Submission {
   answers: SubmittedAnswerRow[];
 }
 
-/** Per-question review: the user's picks, the score, and the correct option ids. */
+/** Per-question review: the user's picks, the score, the question's weight, and the correct option ids. */
 export interface ReviewedAnswer extends SubmittedAnswerRow {
   correct: boolean;
+  weight: number;
   correctOptionIds: string[];
 }
 
