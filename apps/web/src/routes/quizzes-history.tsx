@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { quizClient, ApiError, type QuizSummary } from "@/lib/api-client";
 import { computeQuizStats } from "@/lib/helpers/quiz-stats";
 import { formatDateTime } from "@/lib/helpers/format-date";
+import { formatScorePercentage } from "@/lib/helpers/score-percentage";
 import { Button } from "@/components/forms/controls/button";
 import { Alert } from "@/components/shared/elements/alert";
 import { Card } from "@/components/shared/elements/card";
@@ -19,7 +20,7 @@ function ScoreChip({ finalScore }: { finalScore: number | null }) {
   }
   return (
     <span className="inline-flex items-center rounded-pill bg-lime-200 px-3 py-1 text-sm font-medium text-ink">
-      Score: {finalScore.toFixed(2)}
+      Score: {formatScorePercentage(finalScore)}
     </span>
   );
 }
@@ -76,7 +77,7 @@ export default function QuizHistoryPage() {
           <StatItem value={stats.total} label="quizzes generated" />
           <StatItem value={stats.submitted} label="submitted" />
           <StatItem
-            value={stats.averageScore === null ? "—" : stats.averageScore.toFixed(2)}
+            value={stats.averageScore === null ? "—" : formatScorePercentage(stats.averageScore)}
             label="average score"
           />
         </div>

@@ -31,8 +31,23 @@ describe("<QuizHistoryPage/>", () => {
 
       render(<QuizHistoryPage />);
 
-      expect(await screen.findByText(/score: 3\.50/i)).toBeInTheDocument();
+      expect(await screen.findByText(/score: 87\.5%/i)).toBeInTheDocument();
       expect(await screen.findByText(/not yet submitted/i)).toBeInTheDocument();
+    });
+
+    /**
+     * The mean score uses the same percentage scale as each row.
+     * @scenario "the average score is shown as a percentage"
+     */
+    it("shows the average score as a percentage", async () => {
+      vi.mocked(quizClient.listQuizzes).mockResolvedValueOnce([
+        { ...twoQuizzes[0], finalScore: 3.5 },
+        { ...twoQuizzes[1], finalScore: 2.5 },
+      ]);
+
+      render(<QuizHistoryPage />);
+
+      expect(await screen.findByText("75.0%")).toBeInTheDocument();
     });
 
     /**

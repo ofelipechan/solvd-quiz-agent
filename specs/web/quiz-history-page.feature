@@ -3,16 +3,24 @@ Feature: Quiz history page
   I want the history to list every past quiz with its score and a link into it
   So that I can compare runs and pick up an unfinished quiz
 
-  # Each row: source URL, created date, "Score: N.NN" or "Not yet submitted",
+  # Each row: source URL, created date, "Score: N.N%" (finalScore / 4 * 100, one
+  # decimal) or "Not yet submitted",
   # and a link - "Take quiz" when unsubmitted, "View results" when submitted.
-  # Stats header aggregates total, submitted count and mean score. Spec: HIST-01..03.
+  # Stats header aggregates total, submitted count and mean score, shown as a
+  # percentage the same way. Spec: HIST-01..03.
 
   @integration
   Scenario: each quiz shows its score or that it is not yet submitted
     Given the history holds quiz-1 with finalScore 3.5 and quiz-2 with no finalScore
     When the page opens
-    Then "Score: 3.50" is shown for quiz-1
+    Then "Score: 87.5%" is shown for quiz-1
     And "Not yet submitted" is shown for quiz-2
+
+  @integration
+  Scenario: the average score is shown as a percentage
+    Given the history holds quiz-1 with finalScore 3.5 and quiz-2 with finalScore 2.5
+    When the page opens
+    Then the average score reads "75.0%"
 
   @integration
   Scenario: unsubmitted quizzes link to take them and submitted ones to view results
