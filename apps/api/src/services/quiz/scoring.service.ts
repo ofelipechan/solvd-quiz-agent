@@ -13,8 +13,9 @@ function roundWeight(value: number): number {
 /**
  * Scores one question (0-4) per SCORE-01: a `single` question scores 4 only
  * when the selected set exactly matches the correct option(s), else 0. A
- * `multiple` question scores `4 * correctSelected/totalCorrect` with no
- * penalty for wrong extra picks, clamped to [0, 4].
+ * `multiple` question scores `4 * (correctSelected - wrongSelected) /
+ * totalCorrect`, clamped to [0, 4]: each wrong pick cancels one correct
+ * pick, so selecting every option cannot game the question.
  */
 export function scoreQuestion(question: ScoringQuestion, selectedOptionIds: string[]): number {
   const correctIds = question.options.filter((o) => o.isCorrect).map((o) => o.id);
@@ -32,7 +33,8 @@ export function scoreQuestion(question: ScoringQuestion, selectedOptionIds: stri
     return MIN_SCORE;
   }
   const correctSelected = correctIds.filter((id) => selectedSet.has(id)).length;
-  const raw = MAX_SCORE * (correctSelected / totalCorrect);
+  const wrongSelected = selectedSet.size - correctSelected;
+  const raw = MAX_SCORE * ((correctSelected - wrongSelected) / totalCorrect);
   return Math.min(MAX_SCORE, Math.max(MIN_SCORE, raw));
 }
 

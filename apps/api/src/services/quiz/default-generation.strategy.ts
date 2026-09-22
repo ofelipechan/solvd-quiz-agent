@@ -1,16 +1,16 @@
 import { GeneratedQuizSchema, type GeneratedQuiz } from "../../schemas/generation.schema.js";
 import { startActiveObservation } from "@langfuse/tracing";
-import type { ZodIssue } from "zod";
+import type { z } from "zod";
 import { GenerationFailedError } from "../../errors/quiz.errors.js";
 import type { ChatMessage } from "../../models/chat.model.js";
-import type { OpenRouterClient } from "../llm/openrouter-client.js";
+import type { JsonResponseFormat, OpenRouterClient } from "../llm/openrouter-client.js";
 import type { QuestionGenerationStrategy } from "./generation-strategy.js";
 
 const SYSTEM_PROMPT = [
-  "You are a quiz generator. Read the given Markdown document and produce a JSON object",
-  'matching this shape: { "questions": [ { "text": string, "questionType": "single" | "multiple",',
-  '"options": [ { "text": string, "isCorrect": boolean } ] (exactly 4 options) } ] } (5 to 8 questions).',
-  "Pick \"single\" when exactly one option is correct, \"multiple\" when two or more are correct.",
+  "You are a quiz generator. You will be given a Markdown document. Your goal is to read the content",
+  'of this markdown and help me build a set of questions based on that.',
+  'Create between 5 and 8 questions. Some of them may have a single correct option. Pick a few to have multiple correct options.',
+  "Set\"single\" when exactly one option is correct, and \"multiple\" when two or more are correct.",
   "Respond with JSON only, no prose.",
 ].join("\n");
 
@@ -26,20 +26,22 @@ function buildMessages(markdown: string): ChatMessage[] {
 }
 
 /** Flattens Zod issues into short `path: message` strings for trace metadata. */
-function summarizeIssues(issues: ZodIssue[]): string[] {
-  return issues.slice(0, MAX_REPORTED_ISSUES).map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`);
+function summarizeIssues(issues: z.ZodIssue[]): string[] {
+  return issues
+    .slice(0, MAX_REPORTED_ISSUES)
+    .map((issue) => `${issue.path.map(String).join(".") || "<root>"}: ${issue.message}`);
 }
 
 /**
  * Default (and only, for MVP) `QuestionGenerationStrategy`: prompts
- * OpenRouter for structured quiz JSON, Zod-validates it, and retries
+ * OpenRouter for quiz JSON in the given response format, Zod-validates it, and retries
  * exactly once on a schema failure before giving up (GEN-06). The run is
  * traced as a Langfuse `chain` recording attempts and schema violations.
  */
 export class DefaultGenerationStrategy implements QuestionGenerationStrategy {
   constructor(private readonly client: OpenRouterClient) {}
 
-  async generate(markdown: string): Promise<GeneratedQuiz> {
+  async generate(markdown: string, responseFormat: JsonResponseFormat): Promise<GeneratedQuiz> {
     return startActiveObservation(
       "generate-questions",
       async (chain) => {
@@ -48,7 +50,7 @@ export class DefaultGenerationStrategy implements QuestionGenerationStrategy {
         const validationIssues: string[] = [];
 
         for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-          const result = GeneratedQuizSchema.safeParse(await this.client.chatJSON(messages));
+          const result = GeneratedQuizSchema.safeParse(await this.client.chatJSON(messages, responseFormat));
           if (result.success) {
             const recovered = attempt > 1;
             chain.update({

@@ -5,6 +5,7 @@ import {
   InvalidAnswerError,
   QuizNotFoundError,
 } from "../../errors/quiz.errors.js";
+import { GENERATED_QUIZ_RESPONSE_FORMAT } from "../../schemas/generation.schema.js";
 import type {
   NewQuestionData,
   Quiz,
@@ -76,8 +77,8 @@ export class QuizService {
         throw new InsufficientContentError();
       }
 
-      // Step 2 - Generate strategy
-      const generated = await this.generationStrategy.generate(content);
+      // Step 2 - Generate questions as structured output matching the quiz response schema
+      const generated = await this.generationStrategy.generate(content, GENERATED_QUIZ_RESPONSE_FORMAT);
 
       // Step 3 - Shape questions and assign each its share of the final score
       const weights = assignWeights(generated.questions.length);

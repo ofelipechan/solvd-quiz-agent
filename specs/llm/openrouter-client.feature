@@ -4,7 +4,8 @@ Feature: LLM chat client returning structured JSON
   So that every LLM call is uniform, traced, and attributable for cost
 
   # Thin wrapper over the provider. Model comes from config and can be
-  # overridden. Replies are requested in JSON mode. Every call is recorded as
+  # overridden. Replies are requested in JSON mode by default, or against a
+  # JSON schema (structured outputs) when the caller passes one. Every call is recorded as
   # a "generate-completion" generation observation carrying model, messages,
   # parsed output, token usage and, when the provider reports it, the billed
   # cost.
@@ -21,6 +22,11 @@ Feature: LLM chat client returning structured JSON
     When a chat is sent with one user message
     Then the provider receives that message for the configured model
     And the reply is requested as a single JSON object
+
+  @unit
+  Scenario: a chat is sent with a JSON schema response format
+    When a chat is sent with a JSON schema response format
+    Then the provider receives that response format unchanged
 
   @unit
   Scenario: the parsed JSON reply is returned to the caller
@@ -87,6 +93,11 @@ Feature: LLM chat client returning structured JSON
   Scenario: the trace records that a JSON reply was requested
     When a chat is sent
     Then the generate-completion model parameters show a JSON object response format
+
+  @unit
+  Scenario: the trace records that a JSON schema reply was requested
+    When a chat is sent with a JSON schema response format
+    Then the generate-completion model parameters show a JSON schema response format
 
   @unit
   Scenario: a reply that is not JSON fails the call and marks the generation as errored

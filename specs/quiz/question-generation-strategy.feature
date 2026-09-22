@@ -4,7 +4,8 @@ Feature: Question generation strategy and the generated-quiz contract
   So that a malformed generation never becomes a persisted quiz
 
   # The default strategy sends generator instructions plus the Markdown to the
-  # LLM, asks for JSON, validates the reply against the shared quiz contract,
+  # LLM in the response format handed in by the caller, validates the reply
+  # against the shared quiz contract,
   # and retries exactly once on a contract failure. The contract is shared
   # between api and web. Spec: GEN-01, GEN-02, GEN-06.
 
@@ -69,6 +70,11 @@ Feature: Question generation strategy and the generated-quiz contract
   Scenario: the document text is sent to the LLM verbatim
     When questions are generated from a document
     Then the LLM's user message contains the document text verbatim
+
+  @unit
+  Scenario: the caller's response format is forwarded to the LLM
+    When questions are generated with a response format
+    Then the LLM is asked for that response format
 
   # ============================================================
   # Group: Validation and retry

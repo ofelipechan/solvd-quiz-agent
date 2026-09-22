@@ -61,6 +61,11 @@ Feature: Generate a quiz from a Markdown URL
   # ============================================================
 
   @unit
+  Scenario: questions are generated against the quiz response schema
+    When a quiz is created
+    Then generation is asked for the generated-quiz JSON schema response format
+
+  @unit
   Scenario: a quiz is created by fetching, generating, then persisting
     When a quiz is created from a source URL
     Then the source is fetched before questions are generated

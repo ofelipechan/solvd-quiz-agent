@@ -1,10 +1,13 @@
 import { OpenRouter } from "@openrouter/sdk";
-import type { ChatUsage } from "@openrouter/sdk/models";
+import type { ChatFormatJsonObjectConfig, ChatFormatJsonSchemaConfig, ChatUsage } from "@openrouter/sdk/models";
 import { startActiveObservation } from "@langfuse/tracing";
 import { OPENROUTER_MODEL_ID } from "../../config/env.js";
 import type { ChatMessage } from "../../models/chat.model.js";
 
-const RESPONSE_FORMAT = { type: "json_object" } as const;
+/** Response formats `chatJSON` accepts: plain JSON mode or a JSON schema (structured outputs). */
+export type JsonResponseFormat = ChatFormatJsonObjectConfig | ChatFormatJsonSchemaConfig;
+
+const DEFAULT_RESPONSE_FORMAT: JsonResponseFormat = { type: "json_object" };
 
 /** Maps OpenRouter token counts onto Langfuse's generic `input`/`output`/`total` usage keys. */
 function toUsageDetails(usage: ChatUsage | undefined): Record<string, number> | undefined {
@@ -28,25 +31,26 @@ export class OpenRouterClient {
   ) {}
 
   /**
-   * Sends `messages` in JSON mode and returns the parsed JSON response body.
+   * Sends `messages` and returns the parsed JSON response body. Defaults to
+   * JSON mode; pass a `json_schema` `responseFormat` for structured outputs.
    * Request shape follows OpenRouter's TypeScript SDK documentation. The call
    * is traced as a Langfuse `generation` (model, messages, reply, tokens, cost).
    */
-  async chatJSON(messages: ChatMessage[]): Promise<unknown> {
+  async chatJSON(messages: ChatMessage[], responseFormat: JsonResponseFormat = DEFAULT_RESPONSE_FORMAT): Promise<unknown> {
     return startActiveObservation(
       "generate-completion",
       async (generation) => {
         generation.update({
           model: this.model,
           input: messages,
-          modelParameters: { response_format: RESPONSE_FORMAT.type },
+          modelParameters: { response_format: responseFormat.type },
         });
 
         const result = await this.sdk.chat.send({
           chatRequest: {
             model: this.model,
             messages,
-            responseFormat: RESPONSE_FORMAT,
+            responseFormat,
             stream: false,
           },
         });

@@ -6,6 +6,11 @@ import { setupInMemoryTracing, findSpan, readAttribute } from "../../observabili
 
 const tracing = setupInMemoryTracing();
 
+const jsonSchemaFormat = {
+  type: "json_schema" as const,
+  jsonSchema: { name: "thing", strict: true, schema: { type: "object", properties: {}, additionalProperties: false } },
+};
+
 function mockSdk(content: string, response: Record<string, unknown> = {}) {
   const send = vi.fn().mockResolvedValue({ choices: [{ message: { content } }], ...response });
   return { sdk: { chat: { send } } as unknown as OpenRouter, send };
@@ -32,6 +37,21 @@ describe("OpenRouterClient", () => {
             stream: false,
           },
         });
+      });
+
+      /**
+       * A caller can swap JSON mode for a JSON schema (structured outputs).
+       * @scenario "a chat is sent with a JSON schema response format"
+       */
+      it("forwards a JSON schema response format", async () => {
+        const { sdk, send } = mockSdk("{}");
+        const client = new OpenRouterClient("test-api-key", OPENROUTER_MODEL_ID, sdk);
+
+        await client.chatJSON([{ role: "user", content: "prompt" }], jsonSchemaFormat);
+
+        expect(send).toHaveBeenCalledWith(
+          expect.objectContaining({ chatRequest: expect.objectContaining({ responseFormat: jsonSchemaFormat }) }),
+        );
       });
 
       /**
@@ -194,6 +214,18 @@ describe("OpenRouterClient", () => {
 
         const span = findSpan(await tracing.spans(), "generate-completion");
         expect(readAttribute(span, "langfuse.observation.model.parameters")).toEqual({ response_format: "json_object" });
+      });
+
+      /**
+       * A structured-outputs request is distinguishable from JSON mode in the trace.
+       * @scenario "the trace records that a JSON schema reply was requested"
+       */
+      it("traces that a JSON schema reply was requested", async () => {
+        const { sdk } = mockSdk("{}", { usage });
+        await new OpenRouterClient("k", OPENROUTER_MODEL_ID, sdk).chatJSON(messages, jsonSchemaFormat);
+
+        const span = findSpan(await tracing.spans(), "generate-completion");
+        expect(readAttribute(span, "langfuse.observation.model.parameters")).toEqual({ response_format: "json_schema" });
       });
 
       /**

@@ -59,11 +59,44 @@ describe("scoreQuestion()", () => {
     });
 
     /**
-     * Wrong extra picks do not subtract from the score.
-     * @scenario "an extra wrong pick is not penalized"
+     * A wrong pick removes the credit one correct pick adds.
+     * @scenario "a wrong pick cancels one correct pick"
      */
-    it("scores 4 for both correct options plus a wrong one", () => {
-      expect(scoreQuestion(multipleQuestion, ["a", "b", "c"])).toBe(4);
+    it("scores 2 for both correct options plus a wrong one", () => {
+      expect(scoreQuestion(multipleQuestion, ["a", "b", "c"])).toBe(2);
+    });
+
+    /**
+     * Selecting everything cannot game the question: wrong picks cancel the correct ones.
+     * @scenario "selecting every option earns nothing when wrong picks match correct ones"
+     */
+    it("scores 0 for all four options", () => {
+      expect(scoreQuestion(multipleQuestion, ["a", "b", "c", "d"])).toBe(0);
+    });
+
+    /**
+     * The penalty is clamped so a question never scores negative.
+     * @scenario "more wrong picks than correct picks never scores below 0"
+     */
+    it("scores 0 for one correct and two wrong options", () => {
+      expect(scoreQuestion(multipleQuestion, ["a", "c", "d"])).toBe(0);
+    });
+
+    /**
+     * Credit and penalty are both measured against the number of correct options.
+     * @scenario "penalty is proportional to the number of correct options"
+     */
+    it("scores 2.67 for all four options when three are correct", () => {
+      const threeCorrect: ScoringQuestion = {
+        questionType: "multiple",
+        options: [
+          { id: "a", isCorrect: true },
+          { id: "b", isCorrect: true },
+          { id: "c", isCorrect: true },
+          { id: "d", isCorrect: false },
+        ],
+      };
+      expect(scoreQuestion(threeCorrect, ["a", "b", "c", "d"])).toBeCloseTo(2.67, 2);
     });
 
     /**

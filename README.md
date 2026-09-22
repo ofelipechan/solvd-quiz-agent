@@ -6,7 +6,7 @@ Solvd Quiz Agent is a full-stack TypeScript application that turns a Markdown do
 
 - Generate quizzes from public Markdown and GitHub file URLs
 - Single-answer and multiple-answer questions with four options each
-- Weighted scoring with progressively increasing question weights
+- Weighted scoring: each question scores 0–4 (multiple-answer questions earn partial credit, with wrong picks cancelling correct ones); weights are split equally across questions and the final score is their weighted average
 - Cookie-based authentication and quiz history
 - PostgreSQL persistence through Drizzle ORM
 - OpenRouter-powered structured quiz generation

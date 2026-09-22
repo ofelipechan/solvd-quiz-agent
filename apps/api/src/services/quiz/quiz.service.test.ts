@@ -11,6 +11,7 @@ import {
   type MarkdownFetcherFn,
 } from "./quiz.service.js";
 import type { QuestionGenerationStrategy } from "./generation-strategy.js";
+import { GENERATED_QUIZ_RESPONSE_FORMAT } from "../../schemas/generation.schema.js";
 import type { QuizWithQuestions } from "../../models/quiz.model.js";
 import type { QuizRepository } from "../../repositories/quiz.repository.js";
 
@@ -118,6 +119,19 @@ function buildCollaborators() {
 describe("QuizService", () => {
   describe("createQuiz()", () => {
     describe("given every step succeeds", () => {
+      /**
+       * The service owns the reply contract: generation is asked for the quiz JSON schema (structured outputs).
+       * @scenario "questions are generated against the quiz response schema"
+       */
+      it("asks generation for the generated-quiz JSON schema response format", async () => {
+        const { fetchMarkdown, strategy, repository } = buildCollaborators();
+
+        await new QuizService(fetchMarkdown, strategy, repository).createQuiz("https://example.com/README.md");
+
+        expect(strategy.generate).toHaveBeenCalledWith(expect.any(String), GENERATED_QUIZ_RESPONSE_FORMAT);
+        expect(GENERATED_QUIZ_RESPONSE_FORMAT.type).toBe("json_schema");
+      });
+
       /**
        * A quiz is built in a fixed order and the persisted result is what the caller gets.
        * @scenario "a quiz is created by fetching, generating, then persisting"

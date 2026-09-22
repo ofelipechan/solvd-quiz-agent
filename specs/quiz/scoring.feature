@@ -4,8 +4,10 @@ Feature: Scoring rules for one question and for the whole quiz
   So that the result is predictable and partial credit on multiple-answer questions counts
 
   # Per question: 4 for a correct single answer, 0 for a wrong one, and for a
-  # multiple-answer question 4 * (correct picks / correct options) with no
-  # penalty for extra wrong picks. Every question carries a weight, assigned
+  # multiple-answer question 4 * (correct picks - wrong picks) / correct
+  # options, clamped at 0 so a wrong pick removes the credit a correct pick
+  # adds and selecting everything cannot game the question. Every question
+  # carries a weight, assigned
   # when the quiz is created as an equal split of 100 across the questions
   # (two decimals; the last question absorbs the rounding remainder so the
   # weights add up to exactly 100). Final score = sum(score * weight) /
@@ -41,9 +43,25 @@ Feature: Scoring rules for one question and for the whole quiz
     Then the question scores 2
 
   @unit
-  Scenario: an extra wrong pick is not penalized
+  Scenario: a wrong pick cancels one correct pick
     When the multiple-answer question is answered with both correct options and one wrong option
-    Then the question scores 4
+    Then the question scores 2
+
+  @unit
+  Scenario: selecting every option earns nothing when wrong picks match correct ones
+    When the multiple-answer question is answered with all four options
+    Then the question scores 0
+
+  @unit
+  Scenario: more wrong picks than correct picks never scores below 0
+    When the multiple-answer question is answered with one correct option and two wrong options
+    Then the question scores 0
+
+  @unit
+  Scenario: penalty is proportional to the number of correct options
+    Given a multiple-answer question with 3 correct options out of 4
+    When that question is answered with all four options
+    Then the question scores 2.67
 
   @unit
   Scenario: selecting nothing scores 0

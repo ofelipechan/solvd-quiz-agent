@@ -7,6 +7,8 @@ import { setupInMemoryTracing, findSpan, isChildOf, readAttribute } from "../../
 
 const tracing = setupInMemoryTracing();
 
+const responseFormat = { type: "json_object" as const };
+
 const validQuiz = {
   questions: Array.from({ length: 5 }, (_, i) => ({
     text: `question ${i}`,
@@ -39,15 +41,32 @@ describe("DefaultGenerationStrategy", () => {
         const client = mockClient(validQuiz);
         const strategy = new DefaultGenerationStrategy(client);
 
-        await strategy.generate("# unique-marker-content");
+        await strategy.generate("# unique-marker-content", responseFormat);
 
-        expect(client.chatJSON).toHaveBeenCalledWith([
-          expect.objectContaining({ role: "system" }),
-          expect.objectContaining({
-            role: "user",
-            content: expect.stringContaining("# unique-marker-content"),
-          }),
-        ]);
+        expect(client.chatJSON).toHaveBeenCalledWith(
+          [
+            expect.objectContaining({ role: "system" }),
+            expect.objectContaining({
+              role: "user",
+              content: expect.stringContaining("# unique-marker-content"),
+            }),
+          ],
+          responseFormat,
+        );
+      });
+
+      /**
+       * The strategy does not own the reply shape; it forwards whatever format the caller wants.
+       * @scenario "the caller's response format is forwarded to the LLM"
+       */
+      it("forwards the caller's response format", async () => {
+        const client = mockClient(validQuiz);
+        const strategy = new DefaultGenerationStrategy(client);
+        const format = { type: "json_schema" as const, jsonSchema: { name: "quiz", schema: {} } };
+
+        await strategy.generate("# doc", format);
+
+        expect(client.chatJSON).toHaveBeenCalledWith(expect.any(Array), format);
       });
 
       /**
@@ -58,18 +77,21 @@ describe("DefaultGenerationStrategy", () => {
         const client = mockClient(validQuiz);
         const strategy = new DefaultGenerationStrategy(client);
 
-        await strategy.generate("# doc");
+        await strategy.generate("# doc", responseFormat);
 
-        expect(client.chatJSON).toHaveBeenCalledWith([
-          expect.objectContaining({
-            role: "system",
-            content: expect.stringContaining("You are a quiz generator"),
-          }),
-          expect.objectContaining({
-            role: "user",
-            content: expect.not.stringContaining("You are a quiz generator"),
-          }),
-        ]);
+        expect(client.chatJSON).toHaveBeenCalledWith(
+          [
+            expect.objectContaining({
+              role: "system",
+              content: expect.stringContaining("You are a quiz generator"),
+            }),
+            expect.objectContaining({
+              role: "user",
+              content: expect.not.stringContaining("You are a quiz generator"),
+            }),
+          ],
+          responseFormat,
+        );
       });
     });
 
@@ -82,7 +104,7 @@ describe("DefaultGenerationStrategy", () => {
         const client = mockClient(validQuiz);
         const strategy = new DefaultGenerationStrategy(client);
 
-        const result = await strategy.generate("# doc");
+        const result = await strategy.generate("# doc", responseFormat);
 
         expect(result).toEqual(validQuiz);
         expect(client.chatJSON).toHaveBeenCalledTimes(1);
@@ -98,7 +120,7 @@ describe("DefaultGenerationStrategy", () => {
         const client = mockClient(invalidQuiz, validQuiz);
         const strategy = new DefaultGenerationStrategy(client);
 
-        const result = await strategy.generate("# doc");
+        const result = await strategy.generate("# doc", responseFormat);
 
         expect(result).toEqual(validQuiz);
         expect(client.chatJSON).toHaveBeenCalledTimes(2);
@@ -112,7 +134,7 @@ describe("DefaultGenerationStrategy", () => {
         const client = mockClient(invalidQuiz, invalidQuiz);
         const strategy = new DefaultGenerationStrategy(client);
 
-        await expect(strategy.generate("# doc")).rejects.toBeInstanceOf(GenerationFailedError);
+        await expect(strategy.generate("# doc", responseFormat)).rejects.toBeInstanceOf(GenerationFailedError);
         expect(client.chatJSON).toHaveBeenCalledTimes(2);
       });
     });
@@ -125,7 +147,7 @@ describe("DefaultGenerationStrategy", () => {
        * @scenario "the run is traced as a chain"
        */
       it("traces the run as a chain", async () => {
-        await new DefaultGenerationStrategy(mockClient(validQuiz)).generate("# doc");
+        await new DefaultGenerationStrategy(mockClient(validQuiz)).generate("# doc", responseFormat);
 
         const span = findSpan(await tracing.spans(), "generate-questions");
         expect(readAttribute(span, "langfuse.observation.type")).toBe("chain");
@@ -138,7 +160,7 @@ describe("DefaultGenerationStrategy", () => {
       it("nests the LLM call under the run", async () => {
         const send = vi.fn().mockResolvedValue({ choices: [{ message: { content: JSON.stringify(validQuiz) } }] });
         const client = new OpenRouterClient("k", "m", { chat: { send } } as unknown as OpenRouter);
-        await new DefaultGenerationStrategy(client).generate("# doc");
+        await new DefaultGenerationStrategy(client).generate("# doc", responseFormat);
 
         const spans = await tracing.spans();
         expect(isChildOf(findSpan(spans, "generate-completion"), findSpan(spans, "generate-questions"))).toBe(true);
@@ -149,7 +171,7 @@ describe("DefaultGenerationStrategy", () => {
        * @scenario "the validated quiz is the run's output"
        */
       it("traces the validated quiz as output", async () => {
-        await new DefaultGenerationStrategy(mockClient(validQuiz)).generate("# doc");
+        await new DefaultGenerationStrategy(mockClient(validQuiz)).generate("# doc", responseFormat);
 
         const span = findSpan(await tracing.spans(), "generate-questions");
         expect(readAttribute(span, "langfuse.observation.output")).toEqual(validQuiz);
@@ -160,7 +182,7 @@ describe("DefaultGenerationStrategy", () => {
        * @scenario "a clean first reply is recorded as one attempt"
        */
       it("traces one attempt", async () => {
-        await new DefaultGenerationStrategy(mockClient(validQuiz)).generate("# doc");
+        await new DefaultGenerationStrategy(mockClient(validQuiz)).generate("# doc", responseFormat);
 
         const span = findSpan(await tracing.spans(), "generate-questions");
         expect(readAttribute(span, "langfuse.observation.metadata.attempts")).toBe(1);
@@ -171,7 +193,7 @@ describe("DefaultGenerationStrategy", () => {
        * @scenario "a retry is recorded as two attempts"
        */
       it("traces two attempts", async () => {
-        await new DefaultGenerationStrategy(mockClient(invalidQuiz, validQuiz)).generate("# doc");
+        await new DefaultGenerationStrategy(mockClient(invalidQuiz, validQuiz)).generate("# doc", responseFormat);
 
         const span = findSpan(await tracing.spans(), "generate-questions");
         expect(readAttribute(span, "langfuse.observation.metadata.attempts")).toBe(2);
@@ -182,7 +204,7 @@ describe("DefaultGenerationStrategy", () => {
        * @scenario "a recovered contract failure is flagged as a warning"
        */
       it("flags the run as a warning", async () => {
-        await new DefaultGenerationStrategy(mockClient(invalidQuiz, validQuiz)).generate("# doc");
+        await new DefaultGenerationStrategy(mockClient(invalidQuiz, validQuiz)).generate("# doc", responseFormat);
 
         const span = findSpan(await tracing.spans(), "generate-questions");
         expect(readAttribute(span, "langfuse.observation.level")).toBe("WARNING");
@@ -193,7 +215,7 @@ describe("DefaultGenerationStrategy", () => {
        * @scenario "the contract issues of the failed attempt are kept in the trace"
        */
       it("traces which field failed", async () => {
-        await new DefaultGenerationStrategy(mockClient(invalidQuiz, validQuiz)).generate("# doc");
+        await new DefaultGenerationStrategy(mockClient(invalidQuiz, validQuiz)).generate("# doc", responseFormat);
 
         const span = findSpan(await tracing.spans(), "generate-questions");
         expect(readAttribute(span, "langfuse.observation.metadata.validationIssues")).toEqual([
@@ -206,7 +228,7 @@ describe("DefaultGenerationStrategy", () => {
        * @scenario "the run is marked as errored when both attempts fail"
        */
       it("traces the run as errored", async () => {
-        await new DefaultGenerationStrategy(mockClient(invalidQuiz, invalidQuiz)).generate("# doc").catch(() => undefined);
+        await new DefaultGenerationStrategy(mockClient(invalidQuiz, invalidQuiz)).generate("# doc", responseFormat).catch(() => undefined);
 
         const span = findSpan(await tracing.spans(), "generate-questions");
         expect(span.status.code).toBe(2);
