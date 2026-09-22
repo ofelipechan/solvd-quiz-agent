@@ -18,6 +18,15 @@ function reviewStateFor(result: AnswerResult | undefined, optionId: string): Opt
   return result.correctOptionIds.includes(optionId) ? "correct" : "missed";
 }
 
+/**
+ * The feedback for one option, or undefined when there is none to show. The
+ * API only sends feedback for the options the admin picked, so an untouched
+ * option keeps its explanation hidden.
+ */
+function feedbackFor(result: AnswerResult | undefined, optionId: string): string | undefined {
+  return result?.selectedOptionFeedback.find((entry) => entry.optionId === optionId)?.feedback;
+}
+
 /** One question as a numbered card: serif prompt, option rows, and the per-question verdict after submit. */
 export function QuestionCard({ index, question, selected, result, disabled, onToggle }: QuestionCardProps) {
   const number = String(index + 1).padStart(2, "0");
@@ -49,6 +58,7 @@ export function QuestionCard({ index, question, selected, result, disabled, onTo
             checked={selected.includes(option.id)}
             disabled={disabled}
             review={reviewStateFor(result, option.id)}
+            feedback={feedbackFor(result, option.id)}
             onChange={() => onToggle(option.id)}
           />
         ))}

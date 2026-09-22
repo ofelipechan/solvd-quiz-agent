@@ -38,8 +38,8 @@ const persistedQuiz: QuizWithQuestions = {
       questionType: "single",
       weight: 100,
       options: [
-        { id: "o1", text: "3", isCorrect: false },
-        { id: "o2", text: "4", isCorrect: true },
+        { id: "o1", text: "3" },
+        { id: "o2", text: "4" },
       ],
     },
   ],
@@ -78,6 +78,8 @@ describe("POST /api/quizzes", () => {
       expect(body.questions[0].weight).toBe(100);
       expect(body.questions[0].options[0]).not.toHaveProperty("isCorrect");
       expect(body.questions[0].options[1]).not.toHaveProperty("isCorrect");
+      expect(body.questions[0].options[0]).not.toHaveProperty("feedback");
+      expect(body.questions[0].options[1]).not.toHaveProperty("feedback");
     });
 
     /**
@@ -220,8 +222,8 @@ describe("GET /api/quizzes", () => {
 });
 
 describe("POST /api/quizzes/:id/submit", () => {
-  const QUESTION_ID = "11111111-1111-1111-1111-111111111111";
-  const OPTION_ID = "22222222-2222-2222-2222-222222222222";
+  const QUESTION_ID = "11111111-1111-4111-8111-111111111111";
+  const OPTION_ID = "22222222-2222-4222-8222-222222222222";
   const submitPayload = { answers: [{ questionId: QUESTION_ID, selectedOptionIds: [OPTION_ID] }] };
 
   describe("given a valid session", () => {
@@ -232,7 +234,16 @@ describe("POST /api/quizzes/:id/submit", () => {
     it("returns the final score and per-question answers", async () => {
       const { app } = buildTestApp({
         submitQuiz: async () => ({
-          answers: [{ questionId: QUESTION_ID, correct: true, score: 4, weight: 100, correctOptionIds: [OPTION_ID] }],
+          answers: [
+            {
+              questionId: QUESTION_ID,
+              correct: true,
+              score: 4,
+              weight: 100,
+              correctOptionIds: [OPTION_ID],
+              selectedOptionFeedback: [{ optionId: OPTION_ID, feedback: "that is what the document says" }],
+            },
+          ],
           finalScore: 4,
         }),
       });
@@ -249,7 +260,14 @@ describe("POST /api/quizzes/:id/submit", () => {
       const body = res.json();
       expect(body.finalScore).toBe(4);
       expect(body.answers).toEqual([
-        { questionId: QUESTION_ID, correct: true, score: 4, weight: 100, correctOptionIds: [OPTION_ID] },
+        {
+          questionId: QUESTION_ID,
+          correct: true,
+          score: 4,
+          weight: 100,
+          correctOptionIds: [OPTION_ID],
+          selectedOptionFeedback: [{ optionId: OPTION_ID, feedback: "that is what the document says" }],
+        },
       ]);
     });
 
@@ -379,6 +397,7 @@ describe("GET /api/quizzes/:id", () => {
       expect(body.id).toBe("quiz-1");
       expect(body.submission).toBeNull();
       expect(body.questions[0].options[0]).not.toHaveProperty("isCorrect");
+      expect(body.questions[0].options[0]).not.toHaveProperty("feedback");
     });
 
     /**

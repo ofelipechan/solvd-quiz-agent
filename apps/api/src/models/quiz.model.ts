@@ -1,6 +1,8 @@
 export interface NewOptionData {
   text: string;
   isCorrect: boolean;
+  /** Why this option is correct or incorrect. */
+  feedback: string;
 }
 
 export interface NewQuestionData {
@@ -22,10 +24,16 @@ export interface Quiz {
   createdAt: Date;
 }
 
+/**
+ * One option of a question. `isCorrect` and `feedback` form the answer key:
+ * both are omitted unless the caller explicitly asks for them, so neither
+ * leaks to a client that has not submitted yet.
+ */
 export interface OptionRow {
   id: string;
   text: string;
   isCorrect?: boolean;
+  feedback?: string;
 }
 
 export interface QuestionRow {
@@ -55,15 +63,25 @@ export interface SubmittedAnswerRow {
   score: number;
 }
 
+/** The explanation attached to one option the user picked. */
+export interface OptionFeedback {
+  optionId: string;
+  feedback: string;
+}
+
 export interface SubmissionWithAnswers extends Submission {
   answers: SubmittedAnswerRow[];
 }
 
-/** Per-question review: the user's picks, the score, the question's weight, and the correct option ids. */
+/**
+ * Per-question review: the user's picks, the score, the question's weight,
+ * the correct option ids, and the feedback for each option the user picked.
+ */
 export interface ReviewedAnswer extends SubmittedAnswerRow {
   correct: boolean;
   weight: number;
   correctOptionIds: string[];
+  selectedOptionFeedback: OptionFeedback[];
 }
 
 export interface QuizSubmissionDetail {

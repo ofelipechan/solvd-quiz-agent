@@ -6,7 +6,7 @@ Feature: Quiz history and quiz detail
   # The list shows summaries (final score empty until submitted). A quiz
   # detail carries the question tree with correctness hidden, plus a
   # submission block (empty when unsubmitted) that is the only place correct
-  # option ids are revealed. Spec: HIST-01..03.
+  # option ids and option feedback are revealed. Spec: HIST-01..03.
 
   Background:
     Given the admin is signed in with a valid session
@@ -46,6 +46,7 @@ Feature: Quiz history and quiz detail
     Then the quiz detail is returned with its id
     And there is no submission
     And no option reveals whether it is correct
+    And no option reveals its feedback
 
   @integration
   Scenario: opening an unknown quiz is rejected as not found
@@ -65,6 +66,7 @@ Feature: Quiz history and quiz detail
     Then the detail carries the quiz id
     And there is no submission
     And no option reveals whether it is correct
+    And no option reveals its feedback
 
   @unit
   Scenario: a submitted quiz detail reveals per-question correctness in the submission
@@ -72,6 +74,7 @@ Feature: Quiz history and quiz detail
     When the quiz detail is loaded
     Then the submission carries finalScore, submittedAt and answers
     And each answer carries selectedOptionIds, score, correct and correctOptionIds
+    And each answer carries the feedback of the options that were picked
     And no option outside the submission reveals whether it is correct
 
   @unit

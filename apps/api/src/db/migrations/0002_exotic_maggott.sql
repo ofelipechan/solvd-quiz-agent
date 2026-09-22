@@ -1,0 +1,1 @@
+ALTER TABLE "options" ADD COLUMN "feedback" text DEFAULT '' NOT NULL;

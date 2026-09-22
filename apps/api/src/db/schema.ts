@@ -43,6 +43,8 @@ export const options = pgTable("options", {
     .references(() => questions.id, { onDelete: "cascade" }),
   text: text("text").notNull(),
   isCorrect: boolean("is_correct").notNull(),
+  /** Why this option is correct or incorrect; revealed only after the quiz is submitted. */
+  feedback: text("feedback").notNull().default(""),
 });
 
 export const submissions = pgTable("submissions", {

@@ -6,7 +6,8 @@ Feature: Submit answers to a quiz and receive the score
   # Single-pass: one submission per quiz; a second attempt is refused as a
   # duplicate. Missing answers score 0 rather than rejecting the submission.
   # The correct option ids are revealed only in the submission result, along
-  # with each question's weight. Spec: SCORE-01..06.
+  # with each question's weight and the feedback explaining each option the
+  # admin picked. Spec: SCORE-01..06.
 
   Background:
     Given the admin is signed in with a valid session
@@ -22,6 +23,7 @@ Feature: Submit answers to a quiz and receive the score
     Then the submission succeeds
     And the result carries the final score
     And each answer carries its question, whether it was correct, its score, its weight and the correct option ids
+    And each answer carries the feedback of the options that were picked
 
   @integration
   Scenario: submitting to an unknown quiz is rejected as not found
@@ -66,6 +68,21 @@ Feature: Submit answers to a quiz and receive the score
   Scenario: each answer reports the weight of its question
     When both questions are answered
     Then each answer carries the weight stored for its question
+
+  @unit
+  Scenario: each answer explains the options the admin picked
+    When both questions are answered
+    Then each answer carries the feedback of every option it picked, in the order the options are shown
+
+  @unit
+  Scenario: the feedback of an option the admin did not pick is withheld
+    When only one of the two options of a question is picked
+    Then only the picked option's feedback is returned
+
+  @unit
+  Scenario: a question left unanswered explains nothing
+    When a question is left unanswered
+    Then that answer carries no feedback
 
   @unit
   Scenario: a question left unanswered scores 0

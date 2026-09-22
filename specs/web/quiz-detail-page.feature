@@ -7,8 +7,10 @@ Feature: Quiz page - answer, submit and review
   # -> checkboxes. Button "Submit answers". After submit (or when the quiz was
   # already submitted): per-question correctness, the correct option marked
   # with a check mark, each question's weight, "Final score: N.N%" (derived
-  # from the 0-4 score: 4 -> 100.0%), inputs locked, no submit button. Weights
-  # are hidden while answering. Unknown quiz -> "quiz not found".
+  # from the 0-4 score: 4 -> 100.0%), inputs locked, no submit button. Every
+  # option the admin picked also shows the feedback explaining why it was
+  # right or wrong. Weights and feedback are hidden while answering.
+  # Unknown quiz -> "quiz not found".
   # Spec: UI-03, UI-04, HIST-02, HIST-03, SCORE-05.
 
   # ============================================================
@@ -68,6 +70,24 @@ Feature: Quiz page - answer, submit and review
     Given the quiz was already submitted and its question weighs 20
     When the page opens
     Then "Weight: 20%" is shown on that question
+
+  @integration
+  Scenario: reviewing explains every option the admin picked
+    Given the quiz was already submitted and the admin's pick is explained as wrong
+    When the page opens
+    Then that explanation is shown under the option the admin picked
+
+  @integration
+  Scenario: an option the admin did not pick is not explained
+    Given the quiz was already submitted and only one of two options was picked
+    When the page opens
+    Then no explanation is shown under the option the admin left alone
+
+  @integration
+  Scenario: no explanation is shown while answering
+    Given the quiz has not been submitted
+    When the page opens
+    Then no explanation is shown on any option
 
   @integration
   Scenario: weights are hidden while answering

@@ -1,21 +1,38 @@
 import { describe, expect, it } from "vitest";
 import { GeneratedQuizSchema } from "./generation.schema.js";
 
+interface OptionFixture {
+  text: string;
+  isCorrect: boolean;
+  feedback?: string;
+}
+
+/** Every option needs a feedback, so the fixtures fill one in unless a test overrides it. */
+function withFeedback(options: OptionFixture[]) {
+  return options.map((option) => ({
+    feedback: option.isCorrect ? "The document says so." : "The document says otherwise.",
+    ...option,
+  }));
+}
+
 function validQuestion(overrides: Partial<{
   text: string;
   questionType: "single" | "multiple";
-  options: { text: string; isCorrect: boolean }[];
+  options: OptionFixture[];
 }> = {}) {
+  const { options, ...rest } = overrides;
   return {
     text: "What does this project do?",
     questionType: "single" as const,
-    options: [
-      { text: "Option A", isCorrect: true },
-      { text: "Option B", isCorrect: false },
-      { text: "Option C", isCorrect: false },
-      { text: "Option D", isCorrect: false },
-    ],
-    ...overrides,
+    options: withFeedback(
+      options ?? [
+        { text: "Option A", isCorrect: true },
+        { text: "Option B", isCorrect: false },
+        { text: "Option C", isCorrect: false },
+        { text: "Option D", isCorrect: false },
+      ],
+    ),
+    ...rest,
   };
 }
 
@@ -95,6 +112,23 @@ describe("GeneratedQuizSchema", () => {
       options: [
         { text: "Same text", isCorrect: true },
         { text: "Same text", isCorrect: false },
+        { text: "C", isCorrect: false },
+        { text: "D", isCorrect: false },
+      ],
+    });
+    expect(GeneratedQuizSchema.safeParse({ questions }).success).toBe(false);
+  });
+
+  /**
+   * Every option explains itself, so the review after a submission is never blank.
+   * @scenario "a question whose option carries no feedback is rejected"
+   */
+  it("rejects an option with no feedback", () => {
+    const questions = fiveValidQuestions();
+    questions[0] = validQuestion({
+      options: [
+        { text: "A", isCorrect: true, feedback: "" },
+        { text: "B", isCorrect: false },
         { text: "C", isCorrect: false },
         { text: "D", isCorrect: false },
       ],

@@ -46,6 +46,7 @@ export class QuizRepository {
               questionId: questionRow.id,
               text: o.text,
               isCorrect: o.isCorrect,
+              feedback: o.feedback,
             })),
           );
         }
@@ -57,10 +58,11 @@ export class QuizRepository {
 
   /**
    * Loads a quiz with its full question/option tree, ordered by `orderIndex`.
-   * `isCorrect` is omitted from options unless `includeIsCorrect` is true —
-   * it's a back-end-only attribute (scoring), callers opt in explicitly.
+   * The answer key (`isCorrect` plus each option's `feedback`, which explains
+   * why that option is right or wrong) is omitted unless `includeAnswerKey`
+   * is true — it would give the answers away, so callers opt in explicitly.
    */
-  async findQuizWithQuestions(id: string, includeIsCorrect = false): Promise<QuizWithQuestions | null> {
+  async findQuizWithQuestions(id: string, includeAnswerKey = false): Promise<QuizWithQuestions | null> {
     const [quizRow] = await this.db.select().from(quizzes).where(eq(quizzes.id, id));
     if (!quizRow) {
       return null;
@@ -78,7 +80,7 @@ export class QuizRepository {
         .select({
           id: options.id,
           text: options.text,
-          ...(includeIsCorrect ? { isCorrect: options.isCorrect } : {}),
+          ...(includeAnswerKey ? { isCorrect: options.isCorrect, feedback: options.feedback } : {}),
         })
         .from(options)
         .where(eq(options.questionId, q.id));

@@ -54,13 +54,23 @@ const multiQuiz = {
   ],
 };
 
+const PICKED_FEEDBACK = "4 is what two plus two makes";
+
 const submittedQuiz = {
   ...singleQuiz,
   submission: {
     finalScore: 4,
     submittedAt: "2026-01-02T00:00:00Z",
     answers: [
-      { questionId: "q1", selectedOptionIds: ["o2"], score: 4, weight: 20, correct: true, correctOptionIds: ["o2"] },
+      {
+        questionId: "q1",
+        selectedOptionIds: ["o2"],
+        score: 4,
+        weight: 20,
+        correct: true,
+        correctOptionIds: ["o2"],
+        selectedOptionFeedback: [{ optionId: "o2", feedback: PICKED_FEEDBACK }],
+      },
     ],
   },
 };
@@ -112,7 +122,16 @@ describe("<QuizPage/>", () => {
     it("marks the answer correct and shows the final score after submit", async () => {
       seedQuiz(singleQuiz);
       vi.mocked(quizClient.submitQuiz).mockResolvedValueOnce({
-        answers: [{ questionId: "q1", correct: true, score: 4, weight: 20, correctOptionIds: ["o2"] }],
+        answers: [
+          {
+            questionId: "q1",
+            correct: true,
+            score: 4,
+            weight: 20,
+            correctOptionIds: ["o2"],
+            selectedOptionFeedback: [{ optionId: "o2", feedback: PICKED_FEEDBACK }],
+          },
+        ],
         finalScore: 4,
       });
       const user = userEvent.setup();
@@ -137,6 +156,18 @@ describe("<QuizPage/>", () => {
 
       await screen.findAllByRole("radio");
       expect(screen.queryByText(/weight/i)).not.toBeInTheDocument();
+    });
+
+    /**
+     * Before submitting, an explanation would give the answer away.
+     * @scenario "no explanation is shown while answering"
+     */
+    it("shows no explanation before submitting", async () => {
+      seedQuiz(singleQuiz);
+      render(<QuizPage />);
+
+      const radios = await screen.findAllByRole("radio");
+      radios.forEach((radio) => expect(radio).not.toHaveAccessibleDescription());
     });
   });
 
@@ -192,6 +223,30 @@ describe("<QuizPage/>", () => {
 
       expect(await screen.findByText(/weighted average.*question weights/i)).toBeInTheDocument();
       expect(screen.queryByText(/10% more than the previous one/i)).not.toBeInTheDocument();
+    });
+
+    /**
+     * Review is where the admin learns why their pick was right or wrong.
+     * @scenario "reviewing explains every option the admin picked"
+     */
+    it("shows the explanation for the picked option", async () => {
+      seedQuiz(submittedQuiz);
+      render(<QuizPage />);
+
+      expect(await screen.findByText(PICKED_FEEDBACK)).toBeInTheDocument();
+    });
+
+    /**
+     * Explaining an option nobody picked would hand over the rest of the answer key.
+     * @scenario "an option the admin did not pick is not explained"
+     */
+    it("shows no explanation on the option left alone", async () => {
+      seedQuiz(submittedQuiz);
+      render(<QuizPage />);
+
+      const radios = await screen.findAllByRole("radio");
+      expect(radios[1]).toHaveAccessibleDescription(expect.stringContaining(PICKED_FEEDBACK));
+      expect(radios[0]).not.toHaveAccessibleDescription();
     });
 
     /**

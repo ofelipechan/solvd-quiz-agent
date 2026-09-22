@@ -8,12 +8,15 @@ import {
 import { GENERATED_QUIZ_RESPONSE_FORMAT } from "../../schemas/generation.schema.js";
 import type {
   NewQuestionData,
+  OptionFeedback,
+  QuestionRow,
   Quiz,
   QuizDetail,
   QuizSubmissionDetail,
   QuizSummary,
   QuizWithQuestions,
   ReviewedAnswer,
+  SubmittedAnswerRow,
 } from "../../models/quiz.model.js";
 import type { QuizRepository } from "../../repositories/quiz.repository.js";
 import { fetchMarkdown } from "../markdown/markdown-fetcher.js";
@@ -31,10 +34,22 @@ const MIN_CONTENT_LENGTH = 200;
 
 const FULL_SCORE = 4;
 
+/**
+ * The feedback of every option the user picked, in the question's own option
+ * order. Requires a question loaded with its answer key; options without
+ * stored feedback (quizzes generated before feedback existed) are skipped.
+ */
+function feedbackForSelection(question: QuestionRow, selectedOptionIds: string[]): OptionFeedback[] {
+  const selected = new Set(selectedOptionIds);
+  return question.options
+    .filter((option) => selected.has(option.id) && Boolean(option.feedback))
+    .map((option) => ({ optionId: option.id, feedback: option.feedback as string }));
+}
+
 /** Joins persisted answers with each question's correct option ids so the client can render a review. */
 function reviewSubmission(
   quiz: QuizWithQuestions,
-  submission: { finalScore: number; submittedAt: Date; answers: Array<{ questionId: string; selectedOptionIds: string[]; score: number }> },
+  submission: { finalScore: number; submittedAt: Date; answers: SubmittedAnswerRow[] },
 ): QuizSubmissionDetail {
   const answerByQuestion = new Map(submission.answers.map((a) => [a.questionId, a]));
   const answers: ReviewedAnswer[] = quiz.questions.map((question) => {
@@ -46,6 +61,7 @@ function reviewSubmission(
       weight: question.weight,
       correct: answer.score === FULL_SCORE,
       correctOptionIds: question.options.filter((o) => o.isCorrect).map((o) => o.id),
+      selectedOptionFeedback: feedbackForSelection(question, answer.selectedOptionIds),
     };
   });
   return { finalScore: submission.finalScore, submittedAt: submission.submittedAt, answers };
@@ -169,7 +185,14 @@ export class QuizService {
 
       scores.push(score);
       weights.push(question.weight);
-      results.push({ questionId: question.id, correct: score === FULL_SCORE, score, weight: question.weight, correctOptionIds });
+      results.push({
+        questionId: question.id,
+        correct: score === FULL_SCORE,
+        score,
+        weight: question.weight,
+        correctOptionIds,
+        selectedOptionFeedback: feedbackForSelection(question, answer.selectedOptionIds),
+      });
       normalizedAnswers.push({ questionId: question.id, selectedOptionIds: answer.selectedOptionIds });
     }
 

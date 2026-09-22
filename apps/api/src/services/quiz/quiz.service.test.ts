@@ -29,10 +29,10 @@ const generatedQuiz = {
       text: "q1",
       questionType: "single" as const,
       options: [
-        { text: "a", isCorrect: true },
-        { text: "b", isCorrect: false },
-        { text: "c", isCorrect: false },
-        { text: "d", isCorrect: false },
+        { text: "a", isCorrect: true, feedback: "a matches the document" },
+        { text: "b", isCorrect: false, feedback: "b contradicts the document" },
+        { text: "c", isCorrect: false, feedback: "c is not mentioned" },
+        { text: "d", isCorrect: false, feedback: "d is the opposite" },
       ],
     },
   ],
@@ -50,10 +50,10 @@ const persistedQuiz: QuizWithQuestions = {
       questionType: "single",
       weight: 100,
       options: [
-        { id: "o1", text: "a", isCorrect: true },
-        { id: "o2", text: "b", isCorrect: false },
-        { id: "o3", text: "c", isCorrect: false },
-        { id: "o4", text: "d", isCorrect: false },
+        { id: "o1", text: "a", isCorrect: true, feedback: "a matches the document" },
+        { id: "o2", text: "b", isCorrect: false, feedback: "b contradicts the document" },
+        { id: "o3", text: "c", isCorrect: false, feedback: "c is not mentioned" },
+        { id: "o4", text: "d", isCorrect: false, feedback: "d is the opposite" },
       ],
     },
   ],
@@ -71,10 +71,10 @@ const twoQuestionQuiz: QuizWithQuestions = {
       questionType: "single",
       weight: 20,
       options: [
-        { id: "q1-a", text: "a", isCorrect: true },
-        { id: "q1-b", text: "b", isCorrect: false },
-        { id: "q1-c", text: "c", isCorrect: false },
-        { id: "q1-d", text: "d", isCorrect: false },
+        { id: "q1-a", text: "a", isCorrect: true, feedback: "q1-a is right" },
+        { id: "q1-b", text: "b", isCorrect: false, feedback: "q1-b is wrong" },
+        { id: "q1-c", text: "c", isCorrect: false, feedback: "q1-c is wrong" },
+        { id: "q1-d", text: "d", isCorrect: false, feedback: "q1-d is wrong" },
       ],
     },
     {
@@ -84,10 +84,10 @@ const twoQuestionQuiz: QuizWithQuestions = {
       questionType: "multiple",
       weight: 80,
       options: [
-        { id: "q2-a", text: "a", isCorrect: true },
-        { id: "q2-b", text: "b", isCorrect: true },
-        { id: "q2-c", text: "c", isCorrect: false },
-        { id: "q2-d", text: "d", isCorrect: false },
+        { id: "q2-a", text: "a", isCorrect: true, feedback: "q2-a is right" },
+        { id: "q2-b", text: "b", isCorrect: true, feedback: "q2-b is right" },
+        { id: "q2-c", text: "c", isCorrect: false, feedback: "q2-c is wrong" },
+        { id: "q2-d", text: "d", isCorrect: false, feedback: "q2-d is wrong" },
       ],
     },
   ],
@@ -179,6 +179,19 @@ describe("QuizService", () => {
         const weights = persisted.questions.map((q: { weight: number }) => q.weight);
         expect(weights).toEqual([33.33, 33.33, 33.34]);
         expect(weights.reduce((sum: number, w: number) => sum + w, 0)).toBeCloseTo(100, 10);
+      });
+
+      /**
+       * The explanation the generator wrote for an option is what the review shows later.
+       * @scenario "every generated option is persisted with its feedback"
+       */
+      it("persists each option with the feedback it was generated with", async () => {
+        const { strategy, repository } = buildCollaborators();
+
+        await new QuizService(strategy, repository).createQuiz("https://example.com/README.md");
+
+        const persisted = (repository.createQuizWithQuestions as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(persisted.questions[0].options).toEqual(generatedQuiz.questions[0].options);
       });
     });
 
@@ -423,8 +436,25 @@ describe("QuizService", () => {
         ]);
 
         expect(result.answers).toEqual([
-          { questionId: "q1", correct: true, score: 4, weight: 20, correctOptionIds: ["q1-a"] },
-          { questionId: "q2", correct: true, score: 4, weight: 80, correctOptionIds: ["q2-a", "q2-b"] },
+          {
+            questionId: "q1",
+            correct: true,
+            score: 4,
+            weight: 20,
+            correctOptionIds: ["q1-a"],
+            selectedOptionFeedback: [{ optionId: "q1-a", feedback: "q1-a is right" }],
+          },
+          {
+            questionId: "q2",
+            correct: true,
+            score: 4,
+            weight: 80,
+            correctOptionIds: ["q2-a", "q2-b"],
+            selectedOptionFeedback: [
+              { optionId: "q2-a", feedback: "q2-a is right" },
+              { optionId: "q2-b", feedback: "q2-b is right" },
+            ],
+          },
         ]);
         expect(result.finalScore).toBe(4);
       });
@@ -466,9 +496,70 @@ describe("QuizService", () => {
         const result = await service.submitQuiz("quiz-2", [{ questionId: "q1", selectedOptionIds: ["q1-a"] }]);
 
         expect(result.answers).toEqual([
-          { questionId: "q1", correct: true, score: 4, weight: 20, correctOptionIds: ["q1-a"] },
-          { questionId: "q2", correct: false, score: 0, weight: 80, correctOptionIds: ["q2-a", "q2-b"] },
+          {
+            questionId: "q1",
+            correct: true,
+            score: 4,
+            weight: 20,
+            correctOptionIds: ["q1-a"],
+            selectedOptionFeedback: [{ optionId: "q1-a", feedback: "q1-a is right" }],
+          },
+          {
+            questionId: "q2",
+            correct: false,
+            score: 0,
+            weight: 80,
+            correctOptionIds: ["q2-a", "q2-b"],
+            selectedOptionFeedback: [],
+          },
         ]);
+      });
+
+      /**
+       * The review explains each pick, in the order the options are shown.
+       * @scenario "each answer explains the options the admin picked"
+       */
+      it("carries the feedback of every picked option in option order", async () => {
+        const { service } = buildSubmitService();
+
+        const result = await service.submitQuiz("quiz-2", [
+          { questionId: "q1", selectedOptionIds: ["q1-b"] },
+          { questionId: "q2", selectedOptionIds: ["q2-c", "q2-a"] },
+        ]);
+
+        expect(result.answers[0].selectedOptionFeedback).toEqual([
+          { optionId: "q1-b", feedback: "q1-b is wrong" },
+        ]);
+        expect(result.answers[1].selectedOptionFeedback).toEqual([
+          { optionId: "q2-a", feedback: "q2-a is right" },
+          { optionId: "q2-c", feedback: "q2-c is wrong" },
+        ]);
+      });
+
+      /**
+       * Explaining an option the admin never picked would give away the rest of the answer key.
+       * @scenario "the feedback of an option the admin did not pick is withheld"
+       */
+      it("explains only the picked option", async () => {
+        const { service } = buildSubmitService();
+
+        const result = await service.submitQuiz("quiz-2", [{ questionId: "q2", selectedOptionIds: ["q2-a"] }]);
+
+        expect(result.answers[1].selectedOptionFeedback).toEqual([
+          { optionId: "q2-a", feedback: "q2-a is right" },
+        ]);
+      });
+
+      /**
+       * With nothing picked there is nothing to explain.
+       * @scenario "a question left unanswered explains nothing"
+       */
+      it("explains nothing on an unanswered question", async () => {
+        const { service } = buildSubmitService();
+
+        const result = await service.submitQuiz("quiz-2", [{ questionId: "q1", selectedOptionIds: ["q1-a"] }]);
+
+        expect(result.answers[1].selectedOptionFeedback).toEqual([]);
       });
 
       /**
@@ -540,6 +631,7 @@ describe("QuizService", () => {
         expect(detail.id).toBe(persistedQuiz.id);
         expect(detail.submission).toBeNull();
         expect(detail.questions[0].options.every((o) => !("isCorrect" in o))).toBe(true);
+        expect(detail.questions[0].options.every((o) => !("feedback" in o))).toBe(true);
       });
     });
 
@@ -560,10 +652,19 @@ describe("QuizService", () => {
           finalScore: 4,
           submittedAt: submission.submittedAt,
           answers: [
-            { questionId: "q1", selectedOptionIds: ["o1"], score: 4, weight: 100, correct: true, correctOptionIds: ["o1"] },
+            {
+              questionId: "q1",
+              selectedOptionIds: ["o1"],
+              score: 4,
+              weight: 100,
+              correct: true,
+              correctOptionIds: ["o1"],
+              selectedOptionFeedback: [{ optionId: "o1", feedback: "a matches the document" }],
+            },
           ],
         });
         expect(detail.questions[0].options.every((o) => !("isCorrect" in o))).toBe(true);
+        expect(detail.questions[0].options.every((o) => !("feedback" in o))).toBe(true);
       });
     });
 

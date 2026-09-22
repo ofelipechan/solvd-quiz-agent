@@ -14,10 +14,10 @@ const validQuiz = {
     text: `question ${i}`,
     questionType: "single" as const,
     options: [
-      { text: "a", isCorrect: true },
-      { text: "b", isCorrect: false },
-      { text: "c", isCorrect: false },
-      { text: "d", isCorrect: false },
+      { text: "a", isCorrect: true, feedback: "a is what the document states" },
+      { text: "b", isCorrect: false, feedback: "b contradicts the document" },
+      { text: "c", isCorrect: false, feedback: "c is never mentioned" },
+      { text: "d", isCorrect: false, feedback: "d is the opposite of the document" },
     ],
   })),
 };
@@ -33,6 +33,24 @@ function mockClient(...responses: unknown[]): OpenRouterClient {
 describe("DefaultGenerationStrategy", () => {
   describe("generate()", () => {
     describe("prompt shape", () => {
+      /**
+       * The review after a submission is only as good as the explanations the
+       * generator is asked for, so the instructions must demand one per option.
+       * @scenario "the generator is told to explain every option"
+       */
+      it("asks for a feedback on every option", async () => {
+        const client = mockClient(validQuiz);
+        const strategy = new DefaultGenerationStrategy(client);
+
+        await strategy.generate("# a document", responseFormat);
+
+        const [messages] = vi.mocked(client.chatJSON).mock.calls[0];
+        expect(messages[0]).toMatchObject({
+          role: "system",
+          content: expect.stringContaining("feedback"),
+        });
+      });
+
       /**
        * The document goes to the LLM verbatim so nothing is lost before generation.
        * @scenario "the document text is sent to the LLM verbatim"

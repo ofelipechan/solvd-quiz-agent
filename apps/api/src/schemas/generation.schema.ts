@@ -4,6 +4,10 @@ import type { ChatFormatJsonSchemaConfig } from "@openrouter/sdk/models";
 export const GeneratedOptionSchema = z.object({
   text: z.string().min(1).describe("The option text"),
   isCorrect: z.boolean().describe("Whether this option is a correct answer"),
+  feedback: z
+    .string()
+    .min(1)
+    .describe("Short explanation of why this option is correct or why it is wrong"),
 });
 
 export const GeneratedQuestionSchema = z

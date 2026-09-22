@@ -45,6 +45,12 @@ Feature: Question generation strategy and the generated-quiz contract
     Then it is rejected
 
   @unit
+  Scenario: a question whose option carries no feedback is rejected
+    Given a quiz where one option has no feedback explaining it
+    When the generated quiz is validated
+    Then it is rejected
+
+  @unit
   Scenario: a quiz with fewer than 5 questions is rejected
     Given a quiz with 4 questions
     When the generated quiz is validated
@@ -59,6 +65,11 @@ Feature: Question generation strategy and the generated-quiz contract
   # ============================================================
   # Group: Prompt shape
   # ============================================================
+
+  @unit
+  Scenario: the generator is told to explain every option
+    When questions are generated from a document
+    Then the generator instructions ask for a feedback on every option
 
   @unit
   Scenario: generator instructions are sent separately from the document

@@ -11,6 +11,8 @@ const SYSTEM_PROMPT = [
   'of this markdown and help me build a set of questions based on that.',
   'Create between 5 and 8 questions. Some of them may have a single correct option. Pick a few to have multiple correct options.',
   "Set\"single\" when exactly one option is correct, and \"multiple\" when two or more are correct.",
+  "Give every option a short feedback explaining why it is correct or why it is wrong,",
+  "grounded in the document. Write it so it reads well on its own, after the quiz is submitted.",
   "Respond with JSON only, no prose.",
 ].join("\n");
 

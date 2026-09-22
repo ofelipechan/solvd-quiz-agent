@@ -22,12 +22,21 @@ export const SubmitRequestSchema = z.object({
 });
 export type SubmitRequest = z.infer<typeof SubmitRequestSchema>;
 
+/** The explanation attached to one option the user picked. */
+export const OptionFeedbackSchema = z.object({
+  optionId: z.string().uuid(),
+  feedback: z.string(),
+});
+export type OptionFeedback = z.infer<typeof OptionFeedbackSchema>;
+
 export const AnswerResultSchema = z.object({
   questionId: z.string().uuid(),
   correct: z.boolean(),
   score: z.number(),
   weight: z.number(),
   correctOptionIds: z.array(z.string().uuid()),
+  /** Why each option the user picked was right or wrong; only sent after submitting. */
+  selectedOptionFeedback: z.array(OptionFeedbackSchema),
 });
 export type AnswerResult = z.infer<typeof AnswerResultSchema>;
 

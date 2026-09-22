@@ -16,6 +16,12 @@ export interface SubmitRequest {
   answers: AnswerInput[];
 }
 
+/** The explanation attached to one option the user picked. */
+export interface OptionFeedback {
+  optionId: string;
+  feedback: string;
+}
+
 export interface AnswerResult {
   questionId: string;
   correct: boolean;
@@ -23,6 +29,8 @@ export interface AnswerResult {
   /** Share of the final score, in percent. */
   weight: number;
   correctOptionIds: string[];
+  /** Why each option the user picked was right or wrong; only sent after submitting. */
+  selectedOptionFeedback: OptionFeedback[];
 }
 
 export interface SubmitResponse {

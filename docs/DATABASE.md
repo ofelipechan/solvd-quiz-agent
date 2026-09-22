@@ -33,6 +33,7 @@ erDiagram
         uuid question_id FK "not null, on delete cascade"
         text text "not null"
         boolean is_correct "not null"
+        text feedback "not null, default '' — why this option is right or wrong"
     }
 
     submissions {
@@ -81,3 +82,4 @@ erDiagram
 - `questions.weight` values within a quiz sum to 100.
 - `answers.selected_option_ids` is a `uuid[]`; referential integrity to `options` is enforced at the application layer, not by the database.
 - Only `users`, `quizzes` and `submissions` carry timestamps; `questions`, `options`, `answers` have none.
+- `options.feedback` is part of the answer key alongside `is_correct`: the API only reveals it once the quiz has been submitted. It defaults to `''` so options created before the column existed stay valid.
