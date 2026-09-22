@@ -6,16 +6,16 @@ import {
   InvalidAnswerError,
   QuizNotFoundError,
 } from "../../errors/quiz.errors.js";
-import {
-  QuizService,
-  type MarkdownFetcherFn,
-} from "./quiz.service.js";
+import { fetchMarkdown } from "../markdown/markdown-fetcher.js";
+import { QuizService } from "./quiz.service.js";
 import type { QuestionGenerationStrategy } from "./generation-strategy.js";
 import { GENERATED_QUIZ_RESPONSE_FORMAT } from "../../schemas/generation.schema.js";
 import type { QuizWithQuestions } from "../../models/quiz.model.js";
 import type { QuizRepository } from "../../repositories/quiz.repository.js";
 
 const tracing = setupInMemoryTracing();
+
+vi.mock("../markdown/markdown-fetcher.js", () => ({ fetchMarkdown: vi.fn() }));
 
 /** Well over the 200-char insufficient-content floor, so the normal fetch->generate path runs. */
 const sampleReadmeContent =
@@ -94,9 +94,11 @@ const twoQuestionQuiz: QuizWithQuestions = {
 };
 
 function buildCollaborators() {
-  const fetchMarkdown: MarkdownFetcherFn = vi
-    .fn()
-    .mockResolvedValue({ content: sampleReadmeContent, sourceUrl: "https://example.com/README.md" });
+  const fetchMarkdownMock = vi.mocked(fetchMarkdown);
+  fetchMarkdownMock.mockReset().mockResolvedValue({
+    content: sampleReadmeContent,
+    sourceUrl: "https://example.com/README.md",
+  });
   const strategy: QuestionGenerationStrategy = { generate: vi.fn().mockResolvedValue(generatedQuiz) };
   const repository = {
     createQuizWithQuestions: vi.fn().mockResolvedValue({
@@ -113,7 +115,7 @@ function buildCollaborators() {
     }),
   } as unknown as QuizRepository;
 
-  return { fetchMarkdown, strategy, repository };
+  return { fetchMarkdown: fetchMarkdownMock, strategy, repository };
 }
 
 describe("QuizService", () => {
@@ -124,9 +126,9 @@ describe("QuizService", () => {
        * @scenario "questions are generated against the quiz response schema"
        */
       it("asks generation for the generated-quiz JSON schema response format", async () => {
-        const { fetchMarkdown, strategy, repository } = buildCollaborators();
+        const { strategy, repository } = buildCollaborators();
 
-        await new QuizService(fetchMarkdown, strategy, repository).createQuiz("https://example.com/README.md");
+        await new QuizService(strategy, repository).createQuiz("https://example.com/README.md");
 
         expect(strategy.generate).toHaveBeenCalledWith(expect.any(String), GENERATED_QUIZ_RESPONSE_FORMAT);
         expect(GENERATED_QUIZ_RESPONSE_FORMAT.type).toBe("json_schema");
@@ -137,7 +139,7 @@ describe("QuizService", () => {
        * @scenario "a quiz is created by fetching, generating, then persisting"
        */
       it("fetches, generates, persists in order and hands back the stored quiz", async () => {
-        const { fetchMarkdown, strategy, repository } = buildCollaborators();
+        const { strategy, repository } = buildCollaborators();
         const calls: string[] = [];
         (fetchMarkdown as ReturnType<typeof vi.fn>).mockImplementation(async () => {
           calls.push("fetch");
@@ -152,7 +154,7 @@ describe("QuizService", () => {
           return { id: persistedQuiz.id, sourceUrl: persistedQuiz.sourceUrl, createdAt: persistedQuiz.createdAt };
         });
 
-        const service = new QuizService(fetchMarkdown, strategy, repository);
+        const service = new QuizService(strategy, repository);
         const result = await service.createQuiz("https://example.com/README.md");
 
         expect(calls).toEqual(["fetch", "generate", "persist"]);
@@ -164,13 +166,13 @@ describe("QuizService", () => {
        * @scenario "every generated question is persisted with an equal-split weight"
        */
       it("persists 3 questions weighing 33.33, 33.33 and 33.34", async () => {
-        const { fetchMarkdown, strategy, repository } = buildCollaborators();
+        const { strategy, repository } = buildCollaborators();
         const question = generatedQuiz.questions[0];
         (strategy.generate as ReturnType<typeof vi.fn>).mockResolvedValue({
           questions: [question, { ...question, text: "q2" }, { ...question, text: "q3" }],
         });
 
-        const service = new QuizService(fetchMarkdown, strategy, repository);
+        const service = new QuizService(strategy, repository);
         await service.createQuiz("https://example.com/README.md");
 
         const persisted = (repository.createQuizWithQuestions as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -190,7 +192,7 @@ describe("QuizService", () => {
         const fetchError = new Error("fetch failed");
         (fetchMarkdown as ReturnType<typeof vi.fn>).mockRejectedValue(fetchError);
 
-        const service = new QuizService(fetchMarkdown, strategy, repository);
+        const service = new QuizService(strategy, repository);
 
         await expect(service.createQuiz("https://example.com/README.md")).rejects.toBe(fetchError);
         expect(strategy.generate).not.toHaveBeenCalled();
@@ -204,11 +206,11 @@ describe("QuizService", () => {
        * @scenario "a generation failure stops the flow before persistence"
        */
       it("surfaces the failure and persists nothing", async () => {
-        const { fetchMarkdown, strategy, repository } = buildCollaborators();
+        const { strategy, repository } = buildCollaborators();
         const generationError = new Error("generation failed");
         (strategy.generate as ReturnType<typeof vi.fn>).mockRejectedValue(generationError);
 
-        const service = new QuizService(fetchMarkdown, strategy, repository);
+        const service = new QuizService(strategy, repository);
 
         await expect(service.createQuiz("https://example.com/README.md")).rejects.toBe(generationError);
         expect(repository.createQuizWithQuestions).not.toHaveBeenCalled();
@@ -227,7 +229,7 @@ describe("QuizService", () => {
           sourceUrl: "https://example.com/README.md",
         });
 
-        const service = new QuizService(fetchMarkdown, strategy, repository);
+        const service = new QuizService(strategy, repository);
 
         await expect(service.createQuiz("https://example.com/README.md")).rejects.toBeInstanceOf(
           InsufficientContentError,
@@ -252,7 +254,10 @@ describe("QuizService", () => {
 
       async function createQuiz(overrides: Partial<ReturnType<typeof buildCollaborators>> = {}) {
         const collaborators = { ...buildCollaborators(), ...overrides };
-        const service = new QuizService(collaborators.fetchMarkdown, collaborators.strategy, collaborators.repository);
+        if (overrides.fetchMarkdown) {
+          vi.mocked(fetchMarkdown).mockImplementation(overrides.fetchMarkdown);
+        }
+        const service = new QuizService(collaborators.strategy, collaborators.repository);
         await service.createQuiz(sourceUrl).catch(() => undefined);
         return tracing.spans();
       }
@@ -339,7 +344,7 @@ describe("QuizService", () => {
        * @scenario "a fetch failure marks the root as errored with the reason"
        */
       it("traces the root as errored with the fetch reason", async () => {
-        const fetchMarkdown: MarkdownFetcherFn = vi.fn().mockRejectedValue(new Error("fetch failed"));
+        const fetchMarkdown = vi.fn().mockRejectedValue(new Error("fetch failed"));
         const root = findSpan(await createQuiz({ fetchMarkdown }), "create-quiz");
 
         expect(root.status).toEqual({ code: 2, message: "fetch failed" });
@@ -361,7 +366,7 @@ describe("QuizService", () => {
        * @scenario "insufficient content marks the root as errored"
        */
       it("traces the root as errored", async () => {
-        const fetchMarkdown: MarkdownFetcherFn = vi.fn().mockResolvedValue({ content: "too short", sourceUrl });
+        const fetchMarkdown = vi.fn().mockResolvedValue({ content: "too short", sourceUrl });
         const root = findSpan(await createQuiz({ fetchMarkdown }), "create-quiz");
 
         expect(root.status.code).toBe(2);
@@ -375,8 +380,8 @@ describe("QuizService", () => {
      * @scenario "a quiz loaded for scoring carries its full question tree"
      */
     it("hands back the quiz with correctness", async () => {
-      const { fetchMarkdown, strategy, repository } = buildCollaborators();
-      const service = new QuizService(fetchMarkdown, strategy, repository);
+      const { strategy, repository } = buildCollaborators();
+      const service = new QuizService(strategy, repository);
 
       const result = await service.getQuizForSubmission("quiz-1");
 
@@ -388,9 +393,9 @@ describe("QuizService", () => {
      * @scenario "loading an unknown quiz for scoring is rejected as not found"
      */
     it("rejects an unknown quiz as not found", async () => {
-      const { fetchMarkdown, strategy, repository } = buildCollaborators();
+      const { strategy, repository } = buildCollaborators();
       (repository.findQuizWithQuestions as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-      const service = new QuizService(fetchMarkdown, strategy, repository);
+      const service = new QuizService(strategy, repository);
 
       await expect(service.getQuizForSubmission("missing")).rejects.toBeInstanceOf(QuizNotFoundError);
     });
@@ -398,9 +403,9 @@ describe("QuizService", () => {
 
   describe("submitQuiz()", () => {
     function buildSubmitService() {
-      const { fetchMarkdown, strategy, repository } = buildCollaborators();
+      const { strategy, repository } = buildCollaborators();
       (repository.findQuizWithQuestions as ReturnType<typeof vi.fn>).mockResolvedValue(twoQuestionQuiz);
-      const service = new QuizService(fetchMarkdown, strategy, repository);
+      const service = new QuizService(strategy, repository);
       return { service, repository };
     }
 
@@ -525,11 +530,11 @@ describe("QuizService", () => {
        * @scenario "an unsubmitted quiz detail hides correctness and has no submission"
        */
       it("hands back the detail with no submission and no correctness", async () => {
-        const { fetchMarkdown, strategy, repository } = buildCollaborators();
+        const { strategy, repository } = buildCollaborators();
         (repository as unknown as { findSubmissionWithAnswers: ReturnType<typeof vi.fn> }).findSubmissionWithAnswers =
           vi.fn().mockResolvedValue(null);
 
-        const service = new QuizService(fetchMarkdown, strategy, repository);
+        const service = new QuizService(strategy, repository);
         const detail = await service.getQuiz(persistedQuiz.id);
 
         expect(detail.id).toBe(persistedQuiz.id);
@@ -544,11 +549,11 @@ describe("QuizService", () => {
        * @scenario "a submitted quiz detail reveals per-question correctness in the submission"
        */
       it("hands back the submission with correctness and hides it elsewhere", async () => {
-        const { fetchMarkdown, strategy, repository } = buildCollaborators();
+        const { strategy, repository } = buildCollaborators();
         (repository as unknown as { findSubmissionWithAnswers: ReturnType<typeof vi.fn> }).findSubmissionWithAnswers =
           vi.fn().mockResolvedValue(submission);
 
-        const service = new QuizService(fetchMarkdown, strategy, repository);
+        const service = new QuizService(strategy, repository);
         const detail = await service.getQuiz(persistedQuiz.id);
 
         expect(detail.submission).toEqual({
@@ -568,10 +573,10 @@ describe("QuizService", () => {
        * @scenario "loading the detail of an unknown quiz is rejected as not found"
        */
       it("rejects as not found", async () => {
-        const { fetchMarkdown, strategy, repository } = buildCollaborators();
+        const { strategy, repository } = buildCollaborators();
         (repository.findQuizWithQuestions as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
-        const service = new QuizService(fetchMarkdown, strategy, repository);
+        const service = new QuizService(strategy, repository);
 
         await expect(service.getQuiz("missing")).rejects.toBeInstanceOf(QuizNotFoundError);
       });

@@ -5,7 +5,6 @@ import { buildApp } from "./app.js";
 import { UserRepository } from "./repositories/user.repository.js";
 import { QuizRepository } from "./repositories/quiz.repository.js";
 import { AuthService } from "./services/auth/auth.service.js";
-import { fetchMarkdown } from "./services/markdown/markdown-fetcher.js";
 import { OpenRouterClient } from "./services/llm/openrouter-client.js";
 import { DefaultGenerationStrategy } from "./services/quiz/default-generation.strategy.js";
 import { QuizService } from "./services/quiz/quiz.service.js";
@@ -20,7 +19,7 @@ const quizRepository = new QuizRepository(db);
 const authService = new AuthService(userRepository);
 const openRouterClient = new OpenRouterClient(process.env.OPENROUTER_API_KEY ?? "");
 const generationStrategy = new DefaultGenerationStrategy(openRouterClient);
-const quizService = new QuizService(fetchMarkdown, generationStrategy, quizRepository);
+const quizService = new QuizService(generationStrategy, quizRepository);
 
 registerAuthRoutes(app, authService);
 registerQuizRoutes(app, authService, quizService);

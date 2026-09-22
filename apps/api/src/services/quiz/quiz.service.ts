@@ -16,6 +16,7 @@ import type {
   ReviewedAnswer,
 } from "../../models/quiz.model.js";
 import type { QuizRepository } from "../../repositories/quiz.repository.js";
+import { fetchMarkdown } from "../markdown/markdown-fetcher.js";
 import type { QuestionGenerationStrategy } from "./generation-strategy.js";
 import { scoreQuestion, computeFinalScore, assignWeights } from "./scoring.service.js";
 
@@ -50,13 +51,9 @@ function reviewSubmission(
   return { finalScore: submission.finalScore, submittedAt: submission.submittedAt, answers };
 }
 
-/** The slice of `fetchMarkdown`'s signature `QuizService` depends on. */
-export type MarkdownFetcherFn = (url: string) => Promise<{ content: string; sourceUrl: string }>;
-
 /** Orchestrates fetch -> generate -> persist for quiz creation, and quiz lookup for submit. */
 export class QuizService {
   constructor(
-    private readonly fetchMarkdown: MarkdownFetcherFn,
     private readonly generationStrategy: QuestionGenerationStrategy,
     private readonly repository: QuizRepository,
   ) {}
@@ -102,7 +99,7 @@ export class QuizService {
       "fetch-source",
       async (retriever) => {
         retriever.update({ input: { sourceUrl } });
-        const { content } = await this.fetchMarkdown(sourceUrl);
+        const { content } = await fetchMarkdown(sourceUrl);
         retriever.update({ output: { sourceUrl, contentLength: content.length } });
         return content;
       },
